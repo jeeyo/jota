@@ -83,6 +83,21 @@ finally:
   }
 }
 /*---------------------------------------------------------------------------*/
+static void
+random_piece_and_peer_selection(uint8_t *peer_index, uint8_t *piece_index)
+{
+  while(1)
+  {
+    srand(clock());
+    *peer_index = rand() % JOTA_MAX_PEERS;
+    srand(clock());
+    *piece_index = rand() % JOTA_PIECE_COUNT;
+
+    struct jota_peer_t *peer = &peers[peer_index];
+    if(peer->piece_completed[piece_index] == '1') return;
+  }
+}
+/*---------------------------------------------------------------------------*/
 PROCESS_THREAD(jota_udp_server_process, ev, data)
 {
   PROCESS_BEGIN();
@@ -136,6 +151,8 @@ PROCESS_THREAD(jota_node_process, ev, data)
       
       struct jota_peer_t *peer = &peers[i];
 
+      if(peer->state == JOTA_CONN_STATE_TXING) continue;
+
       // Not Handshaked
       if(!(peer->flags & JOTA_PEER_FLAG_HANDSHAKED))
       {
@@ -146,10 +163,28 @@ PROCESS_THREAD(jota_node_process, ev, data)
         peer->state = JOTA_CONN_STATE_TXING;
         peer->last_tx = clock_time();
       }
-      // Not Downloading From
-      else if(!(peer->flags & JOTA_PEER_FLAG_DOWNLOADING_FROM))
+      // // Not Downloading From
+      // else if(!(peer->flags & JOTA_PEER_FLAG_DOWNLOADING_FROM))
+      // {
+      //   // Select a peer and a piece here
+      //   uint8_t peer_index, piece_index;
+      //   random_piece_and_peer_selection(&peer_index, &piece_index);
+
+      //   uint8_t mbuf[strlen(JT_REQUEST_MSG) + JOTA_PIECE_COUNT + 1];
+      //   size_t mbuflen = sprintf((char *)mbuf, "%s:%d", JT_REQUEST_MSG, piece_index);
+
+      //   uip_udp_packet_send(peer->udp_conn, mbuf, mbuflen);
+      //   peer->state = JOTA_CONN_STATE_TXING;
+      //   peer->last_tx = clock_time();
+      // }
+
+      // Transmission timeout handler
+      if(peer->state = JOTA_CONN_STATE_TXING)
       {
-        // Select a piece here
+        clock_time_t diff = (clock_time() - peer->last_tx) + 1;
+        if(JOTA_TX_TIMEOUT < diff) {
+          // do something here
+        }
       }
     }
   }

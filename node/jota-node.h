@@ -35,6 +35,8 @@ void qsort(void *a, size_t n, size_t es, int (*cmp)());
 #define JT_REQUEST_MSG "request"
 #define JT_PIECE_MSG "piece"
 
+#define JOTA_TX_TIMEOUT (30 * CLOCK_SECOND)
+
 #define UNUSED(x)     ((void)(x))
 
 #if !NETSTACK_CONF_WITH_IPV6 || !UIP_CONF_ROUTER || !UIP_CONF_IPV6_RPL
