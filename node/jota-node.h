@@ -21,13 +21,14 @@ PROCESS_NAME(jota_node_process);
 
 void qsort(void *a, size_t n, size_t es, int (*cmp)());
 
-#define JOTA_NBR_OF_PEERS 9
+#define JOTA_NBR_OF_PEERS 8
 #define JOTA_CONN_PORT 7300
 #define JOTA_CONN_TX_PORT 7300 /* Host byte order */
 #define JOTA_CONN_RX_PORT 7301
 
 #define JT_SERIALIZE_RESULT_LEN 32
 
+#define JT_ACK_MSG "ack"
 #define JT_HANDSHAKE_MSG "handshake"
 #define JT_BITFIELD_MSG "bitfield"
 #define JT_CHOKE_MSG "choke"

@@ -79,14 +79,13 @@ void jota_reset_peer(struct jota_peer_t *p)
   p->udp_conn = NULL;
 
   memset(p->piece_completed, '0', JOTA_PIECE_COUNT);
-  memset(p->piece_downloading, '0', JOTA_PIECE_COUNT);
 
   p->am_choking = 1;
   p->am_interested = 0;
   p->peer_choking = 1;
   p->peer_interested = 0;
 
-  p->flags = 0;
   p->state = JOTA_CONN_STATE_IDLE;
+  p->downloading_piece_index = -1;
   p->last_tx = 0;
 }

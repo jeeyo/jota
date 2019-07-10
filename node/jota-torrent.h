@@ -35,13 +35,15 @@
 
 #define JOTA_CONN_BUFFER_SIZE 128
 enum jota_conn_state_t {
-  JOTA_CONN_STATE_IDLE,
-  JOTA_CONN_STATE_TXING,
+  JOTA_CONN_STATE_IDLE = 0,
+  JOTA_CONN_STATE_HANDSHAKED = 1,
+  JOTA_CONN_STATE_REQUESTING = 2,
 };
 
-#define JOTA_PEER_FLAG_HANDSHAKED 0x01
-#define JOTA_PEER_FLAG_DOWNLOADING_FROM 0x02
-#define JOTA_PEER_FLAG_UPLOADING_TO 0x04
+// #define JOTA_PEER_FLAG_HANDSHAKED 0x01
+// #define JOTA_PEER_FLAG_REQUESTING_PIECE 0x02
+// #define JOTA_PEER_FLAG_DOWNLOADING_FROM 0x04
+// #define JOTA_PEER_FLAG_UPLOADING_TO 0x08
 
 // struct jota_tcp_socket_t {
 //   struct tcp_socket s;
@@ -56,15 +58,16 @@ struct jota_peer_t {
   uint16_t link_metric;
 
   uint8_t piece_completed[JOTA_PIECE_COUNT];
-  uint8_t piece_downloading[JOTA_PIECE_COUNT];
 
   bool am_choking;
   bool am_interested;
   bool peer_choking;
   bool peer_interested;
 
-  uint8_t flags;
   enum jota_conn_state_t state;
+  int downloading_piece_index;
+
+  bool txing;
   clock_time_t last_tx;
 };
 
