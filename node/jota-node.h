@@ -36,6 +36,8 @@ void qsort(void *a, size_t n, size_t es, int (*cmp)());
 #define JT_REQUEST_MSG "request"
 #define JT_PIECE_MSG "piece"
 
+#define JT_ACK_HANDSHAKE_MSG "ackhandshake"
+
 #define JOTA_TX_TIMEOUT (30 * CLOCK_SECOND)
 
 #define UNUSED(x)     ((void)(x))

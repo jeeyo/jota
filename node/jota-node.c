@@ -70,9 +70,8 @@ tcpip_handler(void)
 {
   if(uip_newdata()) {
 
-    char serialized[uip_datalen() + 1];
+    char serialized[uip_datalen()];
     memcpy(serialized, uip_appdata, uip_datalen());
-    serialized[uip_datalen()] = '\0';
 
     struct jota_peer_t *peer = jota_get_peer_by_ipaddr(&UIP_IP_BUF->srcipaddr);
     if(peer == NULL) {
@@ -94,7 +93,8 @@ tcpip_handler(void)
       peer->txing = false;
       peer->state++;
     }
-    else if(memcmp(serialized, JT_HANDSHAKE_MSG, strlen(JT_HANDSHAKE_MSG)) == 0)
+    
+    if(memcmp(serialized, JT_HANDSHAKE_MSG, strlen(JT_HANDSHAKE_MSG)) == 0 || memcmp(serialized, JT_ACK_HANDSHAKE_MSG, strlen(JT_ACK_HANDSHAKE_MSG)) == 0)
     {
       /*
        * 0 = JT_HANDSHAKE_MSG
@@ -106,7 +106,13 @@ tcpip_handler(void)
       // TO-DO: Bound check
       memcpy(&peer->piece_completed[0], &result[1][0], JOTA_PIECE_COUNT);
 
-      uip_udp_packet_send(peer->udp_conn, JT_ACK_MSG, strlen(JT_ACK_MSG));
+      // Skip sending ACK to an ACK
+      if(memcmp(serialized, JT_ACK_HANDSHAKE_MSG, strlen(JT_ACK_HANDSHAKE_MSG)) == 0) goto finally;
+
+      uint8_t mbuf[strlen(JT_ACK_HANDSHAKE_MSG) + JOTA_PIECE_COUNT + 1];
+      size_t mbuflen = sprintf((char *)mbuf, "%s:%.*s", JT_ACK_HANDSHAKE_MSG, JOTA_PIECE_COUNT, &me.piece_completed[0]);
+      
+      uip_udp_packet_send(peer->udp_conn, mbuf, mbuflen);
     }
     else if(memcmp(serialized, JT_REQUEST_MSG, strlen(JT_REQUEST_MSG)) == 0)
     {
@@ -234,7 +240,7 @@ PROCESS_THREAD(jota_node_process, ev, data)
             __nbr_of_my_uploaders++;
             
             uint8_t mbuf[strlen(JT_REQUEST_MSG) + 2 + 1];
-            size_t mbuflen = sprintf((char *)mbuf, "%s:%2d", JT_REQUEST_MSG, peer->downloading_piece_index);
+            size_t mbuflen = sprintf((char *)mbuf, "%s:%02d", JT_REQUEST_MSG, peer->downloading_piece_index);
 
             uip_udp_packet_send(peer->udp_conn, mbuf, mbuflen);
             peer->txing = true;
