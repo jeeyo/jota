@@ -38,6 +38,7 @@ enum jota_conn_state_t {
   JOTA_CONN_STATE_IDLE = 0,
   JOTA_CONN_STATE_HANDSHAKED = 1,
   JOTA_CONN_STATE_REQUESTING = 2,
+  JOTA_CONN_STATE_REQUESTED = 3,
 };
 
 // #define JOTA_PEER_FLAG_HANDSHAKED 0x01
@@ -59,10 +60,12 @@ struct jota_peer_t {
 
   uint8_t piece_completed[JOTA_PIECE_COUNT];
 
-  bool am_choking;
-  bool am_interested;
-  bool peer_choking;
-  bool peer_interested;
+  bool am_choking;      // We are choking this peer
+  bool am_interested;   // We are interested in this peer
+  bool peer_choking;    // This peer is choking us
+  bool peer_interested; // This peer is interested in us
+
+  clock_time_t last_choked;
 
   enum jota_conn_state_t state;
   int downloading_piece_index;
