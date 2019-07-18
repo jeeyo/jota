@@ -80,10 +80,14 @@ void jota_reset_peer(struct jota_peer_t *p)
 
   memset(p->piece_completed, '0', JOTA_PIECE_COUNT);
 
-  p->am_choking = 1;
+  // p->am_choking = 1;
+  p->am_choking = 0;
   p->am_interested = 0;
-  p->peer_choking = 1;
+  // p->peer_choking = 1;
+  p->peer_choking = 0;
   p->peer_interested = 0;
+
+  p->last_choked = 0;
 
   p->state = JOTA_CONN_STATE_IDLE;
   p->downloading_piece_index = -1;

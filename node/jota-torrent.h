@@ -11,18 +11,13 @@
 #include "contiki-lib.h"
 #include "contiki-net.h"
 
-// You have to manually check if maximum connections reached before accepting a new connection
-#define JOTA_MAX_PEERS 20           // number of jota_peer_t (to keep information of peers)
-#define JOTA_MAX_PEER_CONNS 5       // number of tcp_socket (to keep connection to peers)
-#define JOTA_MAX_UPLOAD_SLOTS 4
-
-#define JT_BROADCAST_TRIGGER_TEXT "DEADBEEF"
-#define JT_PEER_PIECE_REQUEST "CAFEFEED"
-#define JT_PEER_PIECE_RESPONSE "ABADCAFE"
+#define JOTA_MAX_PEERS 20
 
 /*
   1x BLOCK = 256 Bytes
   32x BLOCK = 1 PIECE (32 Bytes)
+
+  Note: JOTA_PIECE_COUNT must be less than 100 due to "%02d" format string
 */
 #define JOTA_FILE_SIZE (1 * 1024)
 #define JOTA_PIECE_SIZE (32)                  // 32 B
@@ -68,6 +63,7 @@ struct jota_peer_t {
   clock_time_t last_choked;
 
   enum jota_conn_state_t state;
+  int uploading_piece_index;
   int downloading_piece_index;
 
   bool txing;

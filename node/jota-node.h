@@ -9,7 +9,6 @@
 
 #include "node-id.h"
 #include "crc16.h"
-#include "cfs/cfs.h"
 #include "lib/random.h"
 
 #include <stdio.h>
@@ -37,8 +36,10 @@ void qsort(void *a, size_t n, size_t es, int (*cmp)());
 #define JT_PIECE_MSG "piece"
 
 #define JT_ACK_HANDSHAKE_MSG "ackhandshake"
+#define JT_ACK_PIECE "ackpiece"
 
 #define JOTA_TX_TIMEOUT (30 * CLOCK_SECOND)
+#define JOTA_CHOKED_TIMEOUT (60 * CLOCK_SECOND)
 
 #define UNUSED(x)     ((void)(x))
 
