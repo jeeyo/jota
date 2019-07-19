@@ -131,8 +131,6 @@ tcpip_handler(void)
       peer->uploading_piece_index = strtoul(result[1], &endptr, 10);
       peer->peer_interested = true;
 
-      printf("uploading_piece_index as string (%s), as int (%d)\n", result[1], peer->uploading_piece_index);
-
       // TO-DO: Perhaps combine them to am_choking?
       // int choking = peer->am_choking && (__nbr_of_my_downloaders >= JOTA_MAX_DOWNLOADERS);
       int choking = peer->am_choking;
@@ -157,9 +155,7 @@ tcpip_handler(void)
       jota_deserialize(serialized, result, 2);
 
       peer->peer_choking = strtoul(result[1], &endptr, 10);
-      peer->state = JOTA_CONN_STATE_REQUESTED;
-
-      printf("peer_choking as string (%s), as int (%d)\n", result[1], peer->peer_choking);
+      peer->state = JOTA_CONN_STATE_INTERESTING;
 
       printf("CHOKE (%d) from ", peer->peer_choking);
       uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
@@ -345,7 +341,7 @@ PROCESS_THREAD(jota_node_process, ev, data)
         // }
       }
       // Just Requested
-      else if(peer->state == JOTA_CONN_STATE_REQUESTED)
+      else if(peer->state == JOTA_CONN_STATE_INTERESTING)
       {
         if(peer->peer_choking == 0)
         {
