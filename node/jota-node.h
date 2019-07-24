@@ -22,8 +22,6 @@ void qsort(void *a, size_t n, size_t es, int (*cmp)());
 
 #define JOTA_NBR_OF_PEERS 8
 #define JOTA_CONN_PORT 7300
-#define JOTA_CONN_TX_PORT 7300 /* Host byte order */
-#define JOTA_CONN_RX_PORT 7301
 
 #define JT_SERIALIZE_RESULT_LEN 32
 
@@ -38,8 +36,9 @@ void qsort(void *a, size_t n, size_t es, int (*cmp)());
 #define JT_ACK_HANDSHAKE_MSG "ackhandshake"
 #define JT_ACK_PIECE "ackpiece"
 
-#define JOTA_TX_TIMEOUT (30 * CLOCK_SECOND)
+#define JOTA_TX_TIMEOUT (10 * CLOCK_SECOND)
 #define JOTA_CHOKED_TIMEOUT (60 * CLOCK_SECOND)
+#define JOTA_HANDSHAKED_TIMEOUT (60 * CLOCK_SECOND)
 
 #define UNUSED(x)     ((void)(x))
 

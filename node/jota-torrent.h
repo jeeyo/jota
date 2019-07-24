@@ -18,9 +18,10 @@
   32x BLOCK = 1 PIECE (32 Bytes)
 
   Note: JOTA_PIECE_COUNT must be less than 100 due to "%02d" format string
+  [New] Note: JOTA_PIECE_COUNT must be less than 64 due to uint64_t
 */
-#define JOTA_FILE_SIZE (1 * 1024)
-#define JOTA_PIECE_SIZE (32)                  // 32 B
+#define JOTA_FILE_SIZE (2 * 1024)
+#define JOTA_PIECE_SIZE (32)                  // 64 B
 
 #if ((JOTA_FILE_SIZE % JOTA_PIECE_SIZE) != 0)
   #define JOTA_PIECE_COUNT ((unsigned int)((JOTA_FILE_SIZE / JOTA_PIECE_SIZE) + 1)
@@ -53,12 +54,14 @@ struct jota_peer_t {
   uint16_t link_metric;
 
   uint8_t piece_completed[JOTA_PIECE_COUNT];
+  // uint8_t piece_completed[JOTA_PIECE_COUNT / 8];
 
   bool am_choking;      // We are choking this peer
   bool am_interested;   // We are interested in this peer
   bool peer_choking;    // This peer is choking us
   bool peer_interested; // This peer is interested in us
 
+  clock_time_t last_handshaked;
   clock_time_t last_choked;
 
   enum jota_conn_state_t state;
