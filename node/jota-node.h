@@ -23,7 +23,7 @@ void qsort(void *a, size_t n, size_t es, int (*cmp)());
 #define JOTA_NBR_OF_PEERS 8
 #define JOTA_CONN_PORT 7300
 
-#define JT_SERIALIZE_RESULT_LEN 32
+#define JT_SERIALIZE_RESULT_LEN 128
 
 #define JT_ACK_MSG "ack"
 #define JT_HANDSHAKE_MSG "handshake"
