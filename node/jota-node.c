@@ -25,6 +25,24 @@ AUTOSTART_PROCESSES(&jota_udp_server_process, &jota_node_process);
 // AUTOSTART_PROCESSES(&jota_node_process);
 #endif /* JOTA_BORDER_ROUTER */
 /*---------------------------------------------------------------------------*/
+static bool
+random_peer_to_download()
+{
+  // count number of peers that are HANDSHAKED
+  int nbr_of_handshakeds = 0;
+  for(int i = 0; i < JOTA_NBR_OF_PEERS; i++) {
+    struct jota_peer_t *peer = &peers[i];
+    if(peer->state == JOTA_CONN_STATE_HANDSHAKED) nbr_of_handshakeds++;
+  }
+
+  int chance_percentage = (nbr_of_handshakeds / (float)JOTA_NBR_OF_PEERS) * 100;
+
+  srand(clock());
+  int n_rand = (rand() % 100) + 1;
+
+  return n_rand < chance_percentage;
+}
+/*---------------------------------------------------------------------------*/
 static int
 random_unpossessed_piece_from_peer(struct jota_peer_t *peer)
 {
@@ -123,7 +141,7 @@ tcpip_handler(void)
       peer->state = JOTA_CONN_STATE_HANDSHAKED;
       peer->last_handshaked = clock_time();
       
-      printf("HANDSHAKE from ");
+      printf("Received HANDSHAKE from ");
       uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
       printf(" [%.*s]\n", JOTA_PIECE_COUNT, peer->piece_completed);
 
@@ -157,7 +175,7 @@ tcpip_handler(void)
 
       if(!choking) __nbr_of_my_downloaders++;
 
-      printf("INTEREST (%d) from ", peer->uploading_piece_index);
+      printf("Received INTEREST (%d) from ", peer->uploading_piece_index);
       uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
       printf("\n");
 
@@ -179,7 +197,7 @@ tcpip_handler(void)
       peer->peer_choking = strtoul(result[1], &endptr, 10);
       peer->state = JOTA_CONN_STATE_INTERESTING;
 
-      printf("CHOKE (%d) from ", peer->peer_choking);
+      printf("Received CHOKE (%d) from ", peer->peer_choking);
       uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
       printf("\n");
     }
@@ -189,7 +207,7 @@ tcpip_handler(void)
        * 0 = JT_REQUEST_MSG
        */
       
-      printf("REQUEST from ");
+      printf("Received REQUEST from ");
       uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
       printf("\n");
       
@@ -237,10 +255,11 @@ tcpip_handler(void)
       else
         printf("integrity false\n");
 
-      printf("PIECE (%d) from ", piece_index);
+      printf("Received PIECE (%d) from ", piece_index);
       uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
-      printf(" [%.*s]\n", JOTA_PIECE_COUNT, me.piece_completed);
-
+      // printf("\ncompleted: [%.*s]\ndownloading: [%.*s]\n", JOTA_PIECE_COUNT, me.piece_completed, JOTA_PIECE_COUNT, me.piece_downloading);
+      printf("\n");
+      
       peer->state = JOTA_CONN_STATE_HANDSHAKED;
 
       // Check if completed
@@ -292,8 +311,6 @@ PROCESS_THREAD(jota_node_process, ev, data)
   PROCESS_BEGIN();
 
   static int i;
-  
-  printf("JOTA_PIECE_COUNT = %d\n", JOTA_PIECE_COUNT);
 
   jota_peers_init();
 
@@ -371,6 +388,10 @@ PROCESS_THREAD(jota_node_process, ev, data)
         // uint8_t mbuf[strlen(JT_HANDSHAKE_MSG) + 1 + (JOTA_PIECE_COUNT / 8) + 1];
         // size_t mbuflen = sprintf((char *)mbuf, "%s:%.*s", JT_HANDSHAKE_MSG, (JOTA_PIECE_COUNT / 8), me.piece_completed);
 
+        printf("Sending HANDSHAKE to ");
+        uiplib_ipaddr_print(&peer->ipaddr);
+        printf("\n");
+
         uip_udp_packet_send(peer->udp_conn, mbuf, mbuflen);
         peer->txing = true;
         peer->last_tx = clock_time();
@@ -386,26 +407,32 @@ PROCESS_THREAD(jota_node_process, ev, data)
         }
 
         // Download slot available
-        if(__nbr_of_my_uploaders < JOTA_MAX_UPLOADERS)
+        if(__nbr_of_my_uploaders > JOTA_MAX_UPLOADERS) continue;
+
+        // God wants this peer to be downloaded from
+        if(!random_peer_to_download()) continue;
+
+        peer->downloading_piece_index = random_unpossessed_piece_from_peer(peer);
+        if(peer->downloading_piece_index > -1)
         {
-          peer->downloading_piece_index = random_unpossessed_piece_from_peer(peer);
-          if(peer->downloading_piece_index > -1)
-          {
-            printf("found piece index %d [", peer->downloading_piece_index);
-            uiplib_ipaddr_print(&peer->ipaddr);
-            printf("]\n");
+          printf("found piece index %d [", peer->downloading_piece_index);
+          uiplib_ipaddr_print(&peer->ipaddr);
+          printf("]\n");
 
-            __nbr_of_my_uploaders++;
+          __nbr_of_my_uploaders++;
 
-            peer->am_interested = true;
-            
-            uint8_t mbuf[strlen(JT_INTEREST_MSG) + 1 + 2 + 1];
-            size_t mbuflen = sprintf((char *)mbuf, "%s:%02d", JT_INTEREST_MSG, peer->downloading_piece_index);
+          peer->am_interested = true;
+          
+          uint8_t mbuf[strlen(JT_INTEREST_MSG) + 1 + 2 + 1];
+          size_t mbuflen = sprintf((char *)mbuf, "%s:%02d", JT_INTEREST_MSG, peer->downloading_piece_index);
 
-            uip_udp_packet_send(peer->udp_conn, mbuf, mbuflen);
-            peer->txing = true;
-            peer->last_tx = clock_time();
-          }
+          printf("Sending INTEREST (%d) to ", peer->downloading_piece_index);
+          uiplib_ipaddr_print(&peer->ipaddr);
+          printf("\n");
+
+          uip_udp_packet_send(peer->udp_conn, mbuf, mbuflen);
+          peer->txing = true;
+          peer->last_tx = clock_time();
         }
       }
       // Just Requested
@@ -413,11 +440,15 @@ PROCESS_THREAD(jota_node_process, ev, data)
       {
         if(peer->peer_choking == 0)
         {
+          uint8_t mbuf[strlen(JT_REQUEST_MSG) + 1];
+          size_t mbuflen = sprintf((char *)mbuf, "%s", JT_REQUEST_MSG);
+
           me.piece_downloading[peer->downloading_piece_index] = '1';
           // me.piece_downloading[peer->downloading_piece_index / 8] = (1 << (peer->downloading_piece_index % 8));
 
-          uint8_t mbuf[strlen(JT_REQUEST_MSG) + 1];
-          size_t mbuflen = sprintf((char *)mbuf, "%s", JT_REQUEST_MSG);
+          printf("Sending REQUEST to ");
+          uiplib_ipaddr_print(&peer->ipaddr);
+          printf("\n");
 
           uip_udp_packet_send(peer->udp_conn, mbuf, mbuflen);
           peer->txing = true;
@@ -425,7 +456,6 @@ PROCESS_THREAD(jota_node_process, ev, data)
         }
         else
         {
-          // TO-DO: Handle being choked, maybe a timer here?
           if(__nbr_of_my_uploaders > 0) __nbr_of_my_uploaders--;
 
           if(peer->last_choked == 0)

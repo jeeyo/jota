@@ -37,7 +37,7 @@ void qsort(void *a, size_t n, size_t es, int (*cmp)());
 #define JT_ACK_PIECE "ackpiece"
 
 #define JOTA_TX_TIMEOUT (10 * CLOCK_SECOND)
-#define JOTA_CHOKED_TIMEOUT (60 * CLOCK_SECOND)
+#define JOTA_CHOKED_TIMEOUT (30 * CLOCK_SECOND)
 #define JOTA_HANDSHAKED_TIMEOUT (60 * CLOCK_SECOND)
 
 #define UNUSED(x)     ((void)(x))
