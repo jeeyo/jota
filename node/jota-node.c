@@ -1,6 +1,8 @@
 #include "jota-node.h"
 
-#include "net/ipv6/tcpip.h"
+#if UIP_STATISTICS == 1
+extern struct uip_stats uip_stat;
+#endif
 
 extern struct jota_peer_t peers[JOTA_MAX_PEERS];
 
@@ -11,8 +13,33 @@ static struct {
   uint8_t piece_downloading[JOTA_PIECE_COUNT];
 } me;
 
-#define JOTA_MAX_UPLOADERS 5
-#define JOTA_MAX_DOWNLOADERS 5
+// divide by 5 before use
+static int jota_pseudo_random_c_value[] = {
+  0,      // 0%
+  38,     // 5%
+  150,    // 10%
+  320,    // 15%
+  560,    // 20%
+  850,    // 25%
+  1200,   // 30%
+  1600,   // 35%
+  2000,   // 40%
+  2500,   // 45%
+  3000,   // 50%
+  3600,   // 55%
+  4200,   // 60%
+  4800,   // 65%
+  5700,   // 70%
+  6700,   // 75%
+  7500,   // 80%
+  8200,   // 85%
+  8900,   // 90%
+  9500,   // 95%
+  10000,  // 100%
+};
+
+#define JOTA_MAX_UPLOADERS 3
+#define JOTA_MAX_DOWNLOADERS 3
 
 static struct uip_udp_conn *server_conn;
 static int __nbr_of_my_uploaders = 0;
@@ -25,6 +52,13 @@ AUTOSTART_PROCESSES(&jota_udp_server_process, &jota_node_process);
 // AUTOSTART_PROCESSES(&jota_node_process);
 #endif /* JOTA_BORDER_ROUTER */
 /*---------------------------------------------------------------------------*/
+// For energest module
+static unsigned long
+to_seconds(uint64_t time)
+{
+  return (unsigned long)(time / ENERGEST_SECOND);
+}
+/*---------------------------------------------------------------------------*/
 static bool
 random_peer_to_download()
 {
@@ -35,12 +69,39 @@ random_peer_to_download()
     if(peer->state == JOTA_CONN_STATE_HANDSHAKED) nbr_of_handshakeds++;
   }
 
-  int chance_percentage = (nbr_of_handshakeds / (float)JOTA_NBR_OF_PEERS) * 100;
+  // TO-DO: Check the HANDSHAKEDs possessions
+  // percentage of chance
+  int chance = (nbr_of_handshakeds / (float)JOTA_NBR_OF_PEERS) * 100;
 
+  /* Dota 2 Pseudo Random
+   * P(N) = N * C
+   * chance = n * c;
+   */
+  static int n = 0;
+
+  // round up to multiple of five
+  chance = chance + ((5 - (chance % 5)) % 5);
+
+  // find c value from table
+  int c = jota_pseudo_random_c_value[chance / 5];
+
+  // calculate chance
+  int pn = n * c;
+
+  // do random
   srand(clock());
-  int n_rand = (rand() % 100) + 1;
+  int n_rand = rand() % 10000;
 
-  return n_rand < chance_percentage;
+  if(n_rand < pn) {
+    n = 0;
+    return true;
+  }
+  else {
+    n++;
+    return false;
+  }
+
+  // return n_rand < chance;
 }
 /*---------------------------------------------------------------------------*/
 static int
@@ -173,6 +234,10 @@ tcpip_handler(void)
       int choking = peer->am_choking || (__nbr_of_my_downloaders >= JOTA_MAX_DOWNLOADERS);
       // int choking = peer->am_choking;
 
+// #ifdef JOTA_LOW_POWER
+//       choking = peer->is_neighbor && choking;
+// #endif
+
       if(!choking) __nbr_of_my_downloaders++;
 
       printf("Received INTEREST (%d) from ", peer->uploading_piece_index);
@@ -259,12 +324,12 @@ tcpip_handler(void)
       uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
       // printf("\ncompleted: [%.*s]\ndownloading: [%.*s]\n", JOTA_PIECE_COUNT, me.piece_completed, JOTA_PIECE_COUNT, me.piece_downloading);
       printf("\n");
-      
+
       peer->state = JOTA_CONN_STATE_HANDSHAKED;
 
       // Check if completed
       if(memchr((const char *)&me.piece_completed[0], '0', JOTA_PIECE_COUNT) == NULL)
-        printf("Download completed\n");
+        printf("Download completed [dropped %d, forwarded %d]\n", uip_stat.ip.drop, uip_stat.ip.forwarded);
     }
 
 finally:
@@ -324,14 +389,44 @@ PROCESS_THREAD(jota_node_process, ev, data)
     break;
   }
 
+#ifdef JOTA_LOW_POWER
+  // Mark neighbors
+  uip_ds6_nbr_t *nbr;
+  for(nbr = uip_ds6_nbr_head();
+      nbr != NULL;
+      nbr = uip_ds6_nbr_next(nbr))
+  {
+    // TO-DO: dirty hack to change prefix from `fe80` to `fd00`
+    uip_ipaddr_t ipaddr;
+    uip_ipaddr_copy(&ipaddr, &nbr->ipaddr);
+
+    ipaddr.u16[0] = 253;
+    ipaddr.u16[1] = 0;
+    ipaddr.u16[2] = 0;
+    ipaddr.u16[3] = 0;
+
+    printf("nbr ");
+    uiplib_ipaddr_print(&ipaddr);
+    printf("\n");
+
+    struct jota_peer_t *peer = jota_get_peer_by_ipaddr(&ipaddr);
+    if(peer != NULL) peer->is_neighbor = true;
+  }
+#endif
+
   static struct etimer choke_tmr;
   etimer_set(&choke_tmr, 60 * CLOCK_SECOND);
 
+  static struct etimer energest_tmr;
+  etimer_set(&energest_tmr, 10 * CLOCK_SECOND);
+
   while(1)
   {
+    PROCESS_PAUSE();
+
     // Completed downloading, won't transmit anymore
     if(memchr((const char *)&me.piece_completed[0], '0', JOTA_PIECE_COUNT) == NULL) {
-      PROCESS_PAUSE();
+      // PROCESS_PAUSE();
       goto choke;
     }
     
@@ -340,15 +435,44 @@ PROCESS_THREAD(jota_node_process, ev, data)
     //   if(me.piece_completed[i] != UINT8_MAX) goto tx;
     // goto choke;
 
+    // Print energy consumption periodically
+    if(etimer_expired(&energest_tmr))
+    {
+      energest_flush();
+
+      printf("Energest:\n");
+      printf(" CPU          %4lus LPM      %4lus DEEP LPM %4lus  Total time %lus\n",
+              to_seconds(energest_type_time(ENERGEST_TYPE_CPU)),
+              to_seconds(energest_type_time(ENERGEST_TYPE_LPM)),
+              to_seconds(energest_type_time(ENERGEST_TYPE_DEEP_LPM)),
+              to_seconds(ENERGEST_GET_TOTAL_TIME()));
+      printf(" Radio LISTEN %4lus TRANSMIT %4lus OFF      %4lus\n",
+              to_seconds(energest_type_time(ENERGEST_TYPE_LISTEN)),
+              to_seconds(energest_type_time(ENERGEST_TYPE_TRANSMIT)),
+              to_seconds(ENERGEST_GET_TOTAL_TIME()
+                        - energest_type_time(ENERGEST_TYPE_TRANSMIT)
+                        - energest_type_time(ENERGEST_TYPE_LISTEN)));
+      
+      etimer_reset(&energest_tmr);
+    }
+
 // tx:
     for(i = 0; i < JOTA_NBR_OF_PEERS; i++)
     {
-      PROCESS_PAUSE();
+      // PROCESS_PAUSE();
       
       // Skip for ourselves
       if(i == node_id - 1) continue;
       
       struct jota_peer_t *peer = &peers[i];
+
+#ifdef JOTA_LOW_POWER
+      // printf("nbr (%d) [", peer->is_neighbor);
+      // uiplib_ipaddr_print(&peer->ipaddr);
+      // printf("]\n");
+
+      if(!peer->is_neighbor) continue;
+#endif
 
       // Transmission timeout handler
       if(peer->txing == true)
@@ -358,7 +482,7 @@ PROCESS_THREAD(jota_node_process, ev, data)
           
           printf("No responses in time, retransmitting [");
           uiplib_ipaddr_print(&peer->ipaddr);
-          printf("]\n");
+          printf("] %d\n", peer->state);
           
           // TO-DO: May need verification
           if(peer->state == JOTA_CONN_STATE_HANDSHAKED)
@@ -410,15 +534,12 @@ PROCESS_THREAD(jota_node_process, ev, data)
         if(__nbr_of_my_uploaders > JOTA_MAX_UPLOADERS) continue;
 
         // God wants this peer to be downloaded from
+        // if(peer->am_interested == true) continue;
         if(!random_peer_to_download()) continue;
 
         peer->downloading_piece_index = random_unpossessed_piece_from_peer(peer);
         if(peer->downloading_piece_index > -1)
         {
-          printf("found piece index %d [", peer->downloading_piece_index);
-          uiplib_ipaddr_print(&peer->ipaddr);
-          printf("]\n");
-
           __nbr_of_my_uploaders++;
 
           peer->am_interested = true;
@@ -473,9 +594,10 @@ PROCESS_THREAD(jota_node_process, ev, data)
 
 choke:
     // Perform choking algorithm periodically
-    if(ev == PROCESS_EVENT_TIMER && data == &choke_tmr)
+    if(etimer_expired(&choke_tmr))
     {
       // TO-DO
+      printf("choke\n");
       etimer_reset(&choke_tmr);
     }
   }

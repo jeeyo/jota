@@ -78,14 +78,16 @@ void jota_reset_peer(struct jota_peer_t *p)
 {
   p->udp_conn = NULL;
 
+#ifdef JOTA_LOW_POWER
+  p->is_neighbor = false;
+#endif
+
   memset(p->piece_completed, '0', JOTA_PIECE_COUNT);
   // for(int i = 0; i < JOTA_PIECE_COUNT / 8; i++)
   //   p->piece_completed[i] = 0;
   
-  // p->am_choking = 1;
   p->am_choking = 0;
   p->am_interested = 0;
-  // p->peer_choking = 1;
   p->peer_choking = 0;
   p->peer_interested = 0;
 

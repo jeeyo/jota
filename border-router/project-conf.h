@@ -4,6 +4,12 @@
 // #undef MAKE_ROUTING
 // #define MAKE_ROUTING MAKE_ROUTING_RPL_LITE
 
+// #undef UIP_CONF_BUFFER_SIZE
+// #define UIP_CONF_BUFFER_SIZE        2048
+
+#undef UIP_CONF_STATISTICS
+#define UIP_CONF_STATISTICS          1
+
 #undef UIP_CONF_ROUTER
 #define UIP_CONF_ROUTER              1
 
@@ -21,15 +27,15 @@
  *     LOG_LEVEL_INFO         Basic info
  *     LOG_LEVEL_DBG          Detailled debug
   */
-// #define LOG_CONF_LEVEL_IPV6                        LOG_LEVEL_DBG
-// #define LOG_CONF_LEVEL_RPL                         LOG_LEVEL_DBG
-// #define LOG_CONF_LEVEL_6LOWPAN                     LOG_LEVEL_DBG
-// #define LOG_CONF_LEVEL_TCPIP                       LOG_LEVEL_DBG
-// #define LOG_CONF_LEVEL_MAC                         LOG_LEVEL_DBG
-// #define LOG_CONF_LEVEL_FRAMER                      LOG_LEVEL_DBG
-// #define LOG_CONF_LEVEL_COAP                        LOG_LEVEL_DBG
-// #define LOG_CONF_LEVEL_LWM2M                       LOG_LEVEL_DBG
-// #define LOG_CONF_LEVEL_6TOP                        LOG_LEVEL_DBG
+// #define LOG_CONF_LEVEL_IPV6                        LOG_LEVEL_ERR
+// #define LOG_CONF_LEVEL_RPL                         LOG_LEVEL_ERR
+// #define LOG_CONF_LEVEL_6LOWPAN                     LOG_LEVEL_ERR
+// #define LOG_CONF_LEVEL_TCPIP                       LOG_LEVEL_ERR
+// #define LOG_CONF_LEVEL_MAC                         LOG_LEVEL_ERR
+// #define LOG_CONF_LEVEL_FRAMER                      LOG_LEVEL_ERR
+// #define LOG_CONF_LEVEL_COAP                        LOG_LEVEL_ERR
+// #define LOG_CONF_LEVEL_LWM2M                       LOG_LEVEL_ERR
+// #define LOG_CONF_LEVEL_6TOP                        LOG_LEVEL_ERR
 
 /* Enable cooja annotations */
 // #define LOG_CONF_WITH_ANNOTATE 1

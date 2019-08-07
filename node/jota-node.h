@@ -10,6 +10,7 @@
 #include "node-id.h"
 #include "crc16.h"
 #include "lib/random.h"
+#include "sys/energest.h"
 
 #include <stdio.h>
 #include <stdlib.h>
