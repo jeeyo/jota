@@ -19,8 +19,6 @@
 PROCESS_NAME(jota_udp_server_process);
 PROCESS_NAME(jota_node_process);
 
-void qsort(void *a, size_t n, size_t es, int (*cmp)());
-
 #define JOTA_NBR_OF_PEERS 8
 #define JOTA_CONN_PORT 7300
 
@@ -28,14 +26,12 @@ void qsort(void *a, size_t n, size_t es, int (*cmp)());
 
 #define JT_ACK_MSG "ack"
 #define JT_HANDSHAKE_MSG "handshake"
-#define JT_BITFIELD_MSG "bitfield"
 #define JT_CHOKE_MSG "choke"
 #define JT_INTEREST_MSG "interest"
 #define JT_REQUEST_MSG "request"
 #define JT_PIECE_MSG "piece"
 
 #define JT_ACK_HANDSHAKE_MSG "ackhandshake"
-#define JT_ACK_PIECE "ackpiece"
 
 #define JOTA_TX_TIMEOUT (10 * CLOCK_SECOND)
 #define JOTA_CHOKED_TIMEOUT (30 * CLOCK_SECOND)

@@ -19,19 +19,20 @@
   1x BLOCK = 256 Bytes
   32x BLOCK = 1 PIECE (32 Bytes)
 
-  Note: JOTA_PIECE_COUNT must be less than 100 due to "%02d" format string
-  [New] Note: JOTA_PIECE_COUNT must be less than 64 due to uint64_t
+  Note: JOTA_PIECE_COUNT must be less than 64 due to uint64_t
 */
 #define JOTA_FILE_SIZE (4 * 1024)
-#define JOTA_PIECE_SIZE (64)
+// #define JOTA_PIECE_SIZE (64)
 
-#if ((JOTA_FILE_SIZE % JOTA_PIECE_SIZE) != 0)
-  #define JOTA_PIECE_COUNT ((unsigned int)((JOTA_FILE_SIZE / JOTA_PIECE_SIZE) + 1)
-#else
-  #define JOTA_PIECE_COUNT ((unsigned int)(JOTA_FILE_SIZE / JOTA_PIECE_SIZE))
-#endif
+// #if ((JOTA_FILE_SIZE % JOTA_PIECE_SIZE) != 0)
+//   #define JOTA_PIECE_COUNT ((unsigned int)((JOTA_FILE_SIZE / JOTA_PIECE_SIZE) + 1)
+// #else
+//   #define JOTA_PIECE_COUNT ((unsigned int)(JOTA_FILE_SIZE / JOTA_PIECE_SIZE))
+// #endif
+#define JOTA_PIECE_COUNT (64)
+#define JOTA_PIECE_SIZE ((unsigned int)(JOTA_FILE_SIZE / JOTA_PIECE_COUNT))
 
-#define JOTA_CONN_BUFFER_SIZE 128
+// #define JOTA_CONN_BUFFER_SIZE 128
 enum jota_conn_state_t {
   JOTA_CONN_STATE_IDLE = 0,
   JOTA_CONN_STATE_HANDSHAKED = 1,
@@ -59,8 +60,8 @@ struct jota_peer_t {
   bool is_neighbor;
 #endif
 
-  uint8_t piece_completed[JOTA_PIECE_COUNT];
-  // uint8_t piece_completed[JOTA_PIECE_COUNT / 8];
+  // uint8_t piece_completed[JOTA_PIECE_COUNT];
+  uint64_t piece_completed;
 
   bool am_choking;      // We are choking this peer
   bool am_interested;   // We are interested in this peer
