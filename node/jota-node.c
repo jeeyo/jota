@@ -4,7 +4,7 @@
 extern struct uip_stats uip_stat;
 #endif
 
-extern struct jota_peer_t peers[JOTA_MAX_PEERS];
+extern struct jota_peer_t peers[JOTA_NBR_OF_PEERS];
 
 static struct {
   // uint8_t piece_completed[JOTA_PIECE_COUNT];
@@ -44,9 +44,7 @@ static int jota_pseudo_random_c_value[] = {
 #define BIT_SET(val, bitIndex) (val |= (1 << bitIndex))
 #define BIT_CLEAR(val, bitIndex) (val &= ~(1 << bitIndex))
 #define BIT_TOGGLE(val, bitIndex) (val ^= (1 << bitIndex))
-#define BIT_IS_SET(val, bitIndex) (val & (1 << bitIndex)) 
-
-static struct etimer delayed_start_tmr;
+#define BIT_IS_SET(val, bitIndex) (val & (1 << bitIndex))
 
 static struct uip_udp_conn *server_conn;
 static int __nbr_of_my_uploaders = 0;
@@ -131,6 +129,7 @@ random_unpossessed_piece_from_peer(struct jota_peer_t *peer)
   
   if(unpossessed_count == 0) return -1;
   
+  // srand(clock());
   srand(clock_time());
   int n_rand = (rand() % unpossessed_count) + 1;
   
@@ -212,9 +211,9 @@ tcpip_handler(void)
       peer->state = JOTA_CONN_STATE_HANDSHAKED;
       peer->last_handshaked = clock_time();
       
-      printf("Received HANDSHAKE from ");
-      uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
-      printf(" [%" PRIu64 "]\n", peer->piece_completed);
+      // printf("Received HANDSHAKE from ");
+      // uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
+      // printf(" [%" PRIu64 "]\n", peer->piece_completed);
 
       // Skip sending ACK to an ACK
       if(memcmp(serialized, JT_ACK_HANDSHAKE_MSG, strlen(JT_ACK_HANDSHAKE_MSG)) == 0) goto finally;
@@ -250,9 +249,9 @@ tcpip_handler(void)
 
       if(!choking) __nbr_of_my_downloaders++;
 
-      printf("Received INTEREST (%d) from ", peer->uploading_piece_index);
-      uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
-      printf("\n");
+      // printf("Received INTEREST (%d) from ", peer->uploading_piece_index);
+      // uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
+      // printf("\n");
 
       // Send CHOKE back (1 = Choke, 0 = Unchoke)
       uint8_t mbuf[strlen(JT_CHOKE_MSG) + 1 + 1 + 1];
@@ -282,9 +281,9 @@ tcpip_handler(void)
        * 0 = JT_REQUEST_MSG
        */
       
-      printf("Received REQUEST from ");
-      uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
-      printf("\n");
+      // printf("Received REQUEST from ");
+      // uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
+      // printf("\n");
       
       // TO-DO: Remove declaring `piece_content`
       uint8_t piece_content[JOTA_PIECE_SIZE];
@@ -332,15 +331,19 @@ tcpip_handler(void)
 
       printf("Received PIECE (%d) from ", piece_index);
       uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
-      // printf("\ncompleted: [%.*s]\ndownloading: [%.*s]\n", JOTA_PIECE_COUNT, me.piece_completed, JOTA_PIECE_COUNT, me.piece_downloading);
-      printf("\n");
+      printf("\ncompleted: [%" PRIu64 "]\ndownloading: [%" PRIu64 "]\n", me.piece_completed, me.piece_downloading);
+      // printf("\n");
 
       peer->state = JOTA_CONN_STATE_HANDSHAKED;
 
       // Check if completed
       // if(memchr((const char *)&me.piece_completed[0], '0', JOTA_PIECE_COUNT) == NULL)
       if(me.piece_completed == UINT64_MAX)
+#if UIP_STATISTICS == 1
         printf("Download completed [dropped %d, forwarded %d]\n", uip_stat.ip.drop, uip_stat.ip.forwarded);
+#else
+        printf("Download completed\n");
+#endif
     }
 
 finally:
@@ -367,12 +370,6 @@ PROCESS_THREAD(jota_udp_server_process, ev, data)
   server_conn = udp_new(NULL, 0, NULL);
   udp_bind(server_conn, UIP_HTONS(JOTA_CONN_PORT));
 
-  // static struct etimer choke_tmr;
-  // etimer_set(&choke_tmr, 60 * CLOCK_SECOND);
-
-  // static struct etimer energest_tmr;
-  // etimer_set(&energest_tmr, 10 * CLOCK_SECOND);
-
   while(1)
   {
     PROCESS_YIELD();
@@ -380,35 +377,6 @@ PROCESS_THREAD(jota_udp_server_process, ev, data)
     if(ev == tcpip_event) {
       tcpip_handler();
     }
-
-    // // Print energy consumption periodically
-    // if(ev == PROCESS_EVENT_TIMER && data == &energest_tmr)
-    // {
-    //   energest_flush();
-
-    //   printf("Energest:\n");
-    //   printf(" CPU          %4lus LPM      %4lus DEEP LPM %4lus  Total time %lus\n",
-    //           to_seconds(energest_type_time(ENERGEST_TYPE_CPU)),
-    //           to_seconds(energest_type_time(ENERGEST_TYPE_LPM)),
-    //           to_seconds(energest_type_time(ENERGEST_TYPE_DEEP_LPM)),
-    //           to_seconds(ENERGEST_GET_TOTAL_TIME()));
-    //   printf(" Radio LISTEN %4lus TRANSMIT %4lus OFF      %4lus\n",
-    //           to_seconds(energest_type_time(ENERGEST_TYPE_LISTEN)),
-    //           to_seconds(energest_type_time(ENERGEST_TYPE_TRANSMIT)),
-    //           to_seconds(ENERGEST_GET_TOTAL_TIME()
-    //                     - energest_type_time(ENERGEST_TYPE_TRANSMIT)
-    //                     - energest_type_time(ENERGEST_TYPE_LISTEN)));
-      
-    //   etimer_reset(&energest_tmr);
-    // }
-
-    // // Perform choking algorithm periodically
-    // if(ev == PROCESS_EVENT_TIMER && data == &choke_tmr)
-    // {
-    //   // TO-DO
-    //   printf("choke\n");
-    //   etimer_reset(&choke_tmr);
-    // }
   }
 
   PROCESS_END();
@@ -422,6 +390,7 @@ PROCESS_THREAD(jota_node_process, ev, data)
 
   jota_peers_init();
 
+  static struct etimer delayed_start_tmr;
   etimer_set(&delayed_start_tmr, ((60 + (node_id * 10)) * CLOCK_SECOND));
   // etimer_set(&delayed_start_tmr, ((60 + (node_id * 10)) * CLOCK_SECOND));
   // etimer_set(&delayed_start_tmr, 60 * CLOCK_SECOND);
@@ -457,14 +426,18 @@ PROCESS_THREAD(jota_node_process, ev, data)
   }
 #endif
 
+  static struct etimer interval_tmr;
+  etimer_set(&interval_tmr, 5 * CLOCK_SECOND);
+
   while(1)
   {
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&interval_tmr));
+    etimer_reset(&interval_tmr);
+
     // Completed downloading, won't transmit anymore
     // if(memchr((const char *)&me.piece_completed[0], '0', JOTA_PIECE_COUNT) == NULL) {
-    if(me.piece_completed == UINT64_MAX) {
-      PROCESS_PAUSE();
+    if(me.piece_completed == UINT64_MAX)
       continue;
-    }
     
     // PROCESS_PAUSE();
     // for(i = 0; i < JOTA_PIECE_COUNT / 8; i++)
@@ -474,8 +447,6 @@ PROCESS_THREAD(jota_node_process, ev, data)
 // tx:
     for(i = 0; i < JOTA_NBR_OF_PEERS; i++)
     {
-      PROCESS_PAUSE();
-      
       // Skip for ourselves
       if(i == node_id - 1) continue;
       
@@ -519,7 +490,18 @@ PROCESS_THREAD(jota_node_process, ev, data)
       // Not Handshaked
       if(peer->state == JOTA_CONN_STATE_IDLE)
       {
-        if(peer->peer_choking == 1) continue;
+        if(peer->peer_choking == 1)
+        {
+          if(peer->last_choked == 0)
+            peer->last_choked = clock_time();
+          else {
+            clock_time_t diff = (clock_time() - peer->last_choked) + 1;
+            if(JOTA_CHOKED_TIMEOUT < diff) {
+              peer->last_choked = 0;
+              peer->peer_choking = 0;
+            }
+          }
+        }
 
         // uint8_t mbuf[strlen(JT_HANDSHAKE_MSG) + 1 + JOTA_PIECE_COUNT + 1];
         // size_t mbuflen = sprintf((char *)mbuf, "%s:%.*s", JT_HANDSHAKE_MSG, JOTA_PIECE_COUNT, &me.piece_completed[0]);
@@ -527,9 +509,9 @@ PROCESS_THREAD(jota_node_process, ev, data)
         uint8_t mbuf[strlen(JT_HANDSHAKE_MSG) + 20 + 1];
         size_t mbuflen = sprintf((char *)mbuf, "%s:%" PRIu64, JT_HANDSHAKE_MSG, me.piece_completed);
 
-        printf("Sending HANDSHAKE to ");
-        uiplib_ipaddr_print(&peer->ipaddr);
-        printf(" [%.*s (%d bytes)]\n", mbuflen, mbuf, mbuflen);
+        // printf("Sending HANDSHAKE to ");
+        // uiplib_ipaddr_print(&peer->ipaddr);
+        // printf(" [%.*s (%d bytes)]\n", mbuflen, mbuf, mbuflen);
 
         uip_udp_packet_send(peer->udp_conn, mbuf, mbuflen);
         peer->txing = true;
@@ -546,7 +528,7 @@ PROCESS_THREAD(jota_node_process, ev, data)
         }
 
         // Download slot available
-        if(__nbr_of_my_uploaders > JOTA_MAX_UPLOADERS) continue;
+        if(__nbr_of_my_uploaders > JOTA_MAX_UPLOADERS) { printf("download slot not available\n"); continue; }
 
         // God wants this peer to be downloaded from
         // if(peer->am_interested == true) continue;
@@ -569,6 +551,10 @@ PROCESS_THREAD(jota_node_process, ev, data)
           uip_udp_packet_send(peer->udp_conn, mbuf, mbuflen);
           peer->txing = true;
           peer->last_tx = clock_time();
+        } else {
+          printf("downloading_piece_index: -1 [");
+          uiplib_ipaddr_print(&peer->ipaddr);
+          printf("]\n");
         }
       }
       // Just Requested
@@ -600,6 +586,7 @@ PROCESS_THREAD(jota_node_process, ev, data)
             clock_time_t diff = (clock_time() - peer->last_choked) + 1;
             if(JOTA_CHOKED_TIMEOUT < diff) {
               peer->last_choked = 0;
+              peer->peer_choking = 0;
               peer->state = JOTA_CONN_STATE_HANDSHAKED;
             }
           }

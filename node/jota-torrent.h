@@ -13,8 +13,6 @@
 
 // #define JOTA_LOW_POWER
 
-#define JOTA_MAX_PEERS 20
-
 /*
   1x BLOCK = 256 Bytes
   32x BLOCK = 1 PIECE (32 Bytes)
