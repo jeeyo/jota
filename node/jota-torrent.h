@@ -27,8 +27,11 @@
 // #else
 //   #define JOTA_PIECE_COUNT ((unsigned int)(JOTA_FILE_SIZE / JOTA_PIECE_SIZE))
 // #endif
-#define JOTA_PIECE_COUNT (64)
-#define JOTA_PIECE_SIZE ((unsigned int)(JOTA_FILE_SIZE / JOTA_PIECE_COUNT))
+#define JOTA_PIECE_BITFIELD_TYPE uint32_t
+#define JOTA_PIECE_COUNT (sizeof(JOTA_PIECE_BITFIELD_TYPE) * 8)
+#define JOTA_PIECE_COMPLETED_VALUE UINT32_MAX
+// #define JOTA_PIECE_SIZE ((unsigned int)(JOTA_FILE_SIZE / JOTA_PIECE_COUNT))
+#define JOTA_PIECE_SIZE (32)
 
 // #define JOTA_CONN_BUFFER_SIZE 128
 enum jota_conn_state_t {
@@ -59,7 +62,7 @@ struct jota_peer_t {
 #endif
 
   // uint8_t piece_completed[JOTA_PIECE_COUNT];
-  uint64_t piece_completed;
+  JOTA_PIECE_BITFIELD_TYPE piece_completed;
 
   bool am_choking;      // We are choking this peer
   bool am_interested;   // We are interested in this peer
@@ -75,6 +78,7 @@ struct jota_peer_t {
 
   bool txing;
   clock_time_t last_tx;
+  unsigned int num_losses;
 };
 
 void jota_peers_init();

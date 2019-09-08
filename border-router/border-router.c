@@ -33,7 +33,6 @@
 #include "contiki.h"
 #include "contiki-lib.h"
 #include "contiki-net.h"
-#include "net/ipv6/multicast/uip-mcast6.h"
 
 #include "jota-node.h"
 

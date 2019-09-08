@@ -4,8 +4,11 @@
 // #undef MAKE_ROUTING
 // #define MAKE_ROUTING MAKE_ROUTING_RPL_LITE
 
-// #undef UIP_CONF_BUFFER_SIZE
-// #define UIP_CONF_BUFFER_SIZE        2048
+#undef UIP_CONF_BUFFER_SIZE
+#define UIP_CONF_BUFFER_SIZE        140
+
+#undef ENERGEST_CONF_ON
+#define ENERGEST_CONF_ON             1
 
 #undef UIP_CONF_STATISTICS
 #define UIP_CONF_STATISTICS          1

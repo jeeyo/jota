@@ -1,6 +1,7 @@
 #include "jota-torrent.h"
 
 struct jota_peer_t peers[JOTA_NBR_OF_PEERS];
+unsigned int __nbr_of_peers = 0;
 
 void jota_peers_init()
 {
@@ -10,30 +11,44 @@ void jota_peers_init()
     struct jota_peer_t *peer = &peers[i];
     jota_reset_peer(peer);
 
-    // Pre-assign IP Address
-    uip_ipaddr_t *ipaddr = &peer->ipaddr;
-    ipaddr->u16[0] = 253;
-    ipaddr->u16[1] = 0;
-    ipaddr->u16[2] = 0;
-    ipaddr->u16[3] = 0;
-    ipaddr->u16[4] = 258;
-    ipaddr->u16[5] = 256;
-    ipaddr->u16[6] = 256;
-    ipaddr->u16[7] = 256;
+  //   // Pre-assign IP Address
+  //   uip_ipaddr_t *ipaddr = &peer->ipaddr;
 
-    ipaddr->u8[9] = i + 1;
-    ipaddr->u8[11] = i + 1;
-    ipaddr->u8[13] = i + 1;
-    ipaddr->u8[15] = i + 1;
+  //   // fd00::20x:x:x:x
+  //   // ipaddr->u16[0] = 253;
+  //   // ipaddr->u16[1] = 0;
+  //   // ipaddr->u16[2] = 0;
+  //   // ipaddr->u16[3] = 0;
+  //   // ipaddr->u16[4] = 258;
+  //   // ipaddr->u16[5] = 256;
+  //   // ipaddr->u16[6] = 256;
+  //   // ipaddr->u16[7] = 256;
 
-    peer->udp_conn = udp_new(ipaddr, UIP_HTONS(JOTA_CONN_PORT), NULL);
+  //   // ipaddr->u8[9] = i + 1;
+  //   // ipaddr->u8[11] = i + 1;
+  //   // ipaddr->u8[13] = i + 1;
+  //   // ipaddr->u8[15] = i + 1;
+    
+  //   // fd00::c30c:0:0:x
+  //   ipaddr->u16[0] = 253;
+  //   ipaddr->u16[1] = 0;
+  //   ipaddr->u16[2] = 0;
+  //   ipaddr->u16[3] = 0;
+  //   ipaddr->u16[4] = 3267;
+  //   ipaddr->u16[5] = 0;
+  //   ipaddr->u16[6] = 0;
+  //   ipaddr->u16[7] = 0;
+    
+  //   ipaddr->u8[15] = i + 1;
+
+  //   peer->udp_conn = udp_new(ipaddr, UIP_HTONS(JOTA_CONN_PORT), NULL);
   }
 }
 
 struct jota_peer_t *jota_get_peer_by_ipaddr(uip_ipaddr_t *ipaddr)
 {
   int i;
-  for(i = 0; i < JOTA_NBR_OF_PEERS; i++)
+  for(i = 0; i < __nbr_of_peers; i++)
   {
     struct jota_peer_t *peer = &peers[i];
     if(uip_ipaddr_cmp(ipaddr, &peer->ipaddr)) return peer;
@@ -95,4 +110,5 @@ void jota_reset_peer(struct jota_peer_t *p)
   p->state = JOTA_CONN_STATE_IDLE;
   p->downloading_piece_index = -1;
   p->last_tx = 0;
+  p->num_losses = 0;
 }

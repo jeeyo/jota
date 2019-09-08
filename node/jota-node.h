@@ -10,16 +10,15 @@
 #include "node-id.h"
 #include "crc16.h"
 #include "lib/random.h"
-#include "sys/energest.h"
+// #include "sys/energest.h"
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 
 PROCESS_NAME(jota_udp_server_process);
 PROCESS_NAME(jota_node_process);
 
-#define JOTA_NBR_OF_PEERS 8
+#define JOTA_NBR_OF_PEERS 4
 #define JOTA_CONN_PORT 7300
 
 #define JT_SERIALIZE_RESULT_LEN 128
