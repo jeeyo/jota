@@ -10,7 +10,9 @@
 #include "node-id.h"
 #include "crc16.h"
 #include "lib/random.h"
-// #include "sys/energest.h"
+#include "sys/energest.h"
+
+#include "cmp.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,14 +25,21 @@ PROCESS_NAME(jota_node_process);
 
 #define JT_SERIALIZE_RESULT_LEN 128
 
-#define JT_ACK_MSG "ack"
-#define JT_HANDSHAKE_MSG "handshake"
-#define JT_CHOKE_MSG "choke"
-#define JT_INTEREST_MSG "interest"
-#define JT_REQUEST_MSG "request"
-#define JT_PIECE_MSG "piece"
+// #define JT_ACK_MSG "ack"
+// #define JT_HANDSHAKE_MSG "handshake"
+// #define JT_CHOKE_MSG "choke"
+// #define JT_INTEREST_MSG "interest"
+// #define JT_REQUEST_MSG "request"
+// #define JT_BLOCK_MSG "piece"
+// #define JT_ACK_HANDSHAKE_MSG "ackhandshake"
 
-#define JT_ACK_HANDSHAKE_MSG "ackhandshake"
+#define JT_ACK_MSG 0
+#define JT_HANDSHAKE_MSG 1
+#define JT_CHOKE_MSG 2
+#define JT_INTEREST_MSG 3
+#define JT_REQUEST_MSG 4
+#define JT_BLOCK_MSG 5
+#define JT_ACK_HANDSHAKE_MSG 6
 
 #define JOTA_TX_TIMEOUT (10 * CLOCK_SECOND)
 #define JOTA_CHOKED_TIMEOUT (30 * CLOCK_SECOND)

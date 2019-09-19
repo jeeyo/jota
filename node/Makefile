@@ -7,5 +7,6 @@ include $(CONTIKI)/Makefile.identify-target
 MODULES_REL += $(TARGET)
 
 PROJECT_SOURCEFILES += jota-torrent.c
+PROJECT_SOURCEFILES += cmp.c
 
 include $(CONTIKI)/Makefile.include
