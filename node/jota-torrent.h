@@ -60,11 +60,27 @@ struct jota_peer_t
   struct jota_peer_t *next;
 };
 
-void jota_remove_peer_from_list(struct jota_peer_t *p);
+void jota_insert_peer_to_list(uip_ipaddr_t *ipaddr);
+int jota_remove_peer_from_list(struct jota_peer_t *p);
 struct jota_peer_t *jota_get_peer_by_ipaddr(uip_ipaddr_t *ipaddr);
 void jota_reset_peer(struct jota_peer_t *p);
 
+struct jota_unassigned_peer_t {
+  uip_ipaddr_t ipaddr;
+  struct jota_unassigned_peer_t *next;
+};
+struct jota_completed_peer_t {
+  uip_ipaddr_t ipaddr;
+  struct jota_completed_peer_t *next;
+};
+
+/* Store completed peers */
 struct jota_completed_peer_t *jota_completed_peer_get(uip_ipaddr_t *ipaddr);
 void jota_completed_peer_new(uip_ipaddr_t *ipaddr);
+
+/* Queue unassigned peers */
+bool jota_unassigned_peer_is_exists(uip_ipaddr_t *ipaddr);
+void jota_unassigned_peer_enqueue(uip_ipaddr_t *ipaddr);
+int jota_unassigned_peer_dequeue(uip_ipaddr_t *ipaddr);
 
 #endif /* _JOTA_TORRENT_H_ */

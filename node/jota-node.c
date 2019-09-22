@@ -96,73 +96,47 @@ to_seconds(uint64_t time)
 static void
 map_peers_to_neighbors()
 {
-  // clock_time_t least_rx_time = 0xFFFFFFFF;
-  // struct jota_peer_t *least_rx_peer = NULL;
-  // uip_ipaddr_t least_rx_peer_ip;
-
-  // struct jota_peer_t *p = phead;
-  // while(p != NULL) {
-  //   if(p->last_rx < least_rx_time) {
-  //     least_rx_time = p->last_rx;
-  //     uip_ipaddr_copy(&least_rx_peer_ip, &p->ipaddr);
-  //     least_rx_peer = p;
-  //   }
-  //   p = p->next;
-  // }
-
-  // // Threshold
-  // clock_time_t diff = (clock_time() - least_rx_time) + 1;
-  // if(least_rx_peer != NULL && (20 * CLOCK_SECOND) < diff)
-  //   jota_remove_peer_from_list(least_rx_peer);
-
-  if(__nbr_of_peers >= JOTA_NBR_OF_PEERS) return;
-
   struct jota_peer_t *peer;
   uip_ds6_nbr_t *nbr;
   uip_ipaddr_t ipaddr;
 
-  // printf("nbr ");
-  for(nbr = uip_ds6_nbr_head();
-      nbr != NULL;
-      nbr = uip_ds6_nbr_next(nbr))
+  if(me.piece_completed == JOTA_PIECE_COMPLETED_VALUE)
   {
-    // TO-DO: dirty hack to change prefix from `fe80` to `fd00`
-    uip_ipaddr_copy(&ipaddr, &nbr->ipaddr);
+    while(__nbr_of_peers < JOTA_NBR_OF_PEERS && jota_unassigned_peer_dequeue(&ipaddr) > -1 && jota_completed_peer_get(&ipaddr) == NULL)
+    {
+      jota_insert_peer_to_list(&ipaddr);
 
-    ipaddr.u16[0] = 253;
-    ipaddr.u16[1] = 0;
-    ipaddr.u16[2] = 0;
-    ipaddr.u16[3] = 0;
-
-    peer = jota_get_peer_by_ipaddr(&ipaddr);
-
-    // if(uip_ipaddr_cmp(&ipaddr, &least_rx_peer_ip)) continue;
-    if(peer != NULL) continue;
-    if(me.piece_completed == JOTA_PIECE_COMPLETED_VALUE && jota_completed_peer_get(&ipaddr) != NULL) {
-      jota_remove_peer_from_list(peer);
-      continue;
+      printf("added ");
+      uiplib_ipaddr_print(&ipaddr);
+      printf("\n");
     }
-
-    peer = (struct jota_peer_t *)malloc(sizeof(struct jota_peer_t));
-    jota_reset_peer(peer);
-    uip_ipaddr_copy(&peer->ipaddr, &ipaddr);
-    peer->udp_conn = udp_new(&peer->ipaddr, UIP_HTONS(JOTA_CONN_PORT), NULL);
-
-    if(phead == NULL) {
-      phead = peer;
-      phead->next = NULL;
-    } else {
-      peer->next = phead;
-      phead = peer;
-    }
-
-    // uiplib_ipaddr_print(&peer->ipaddr);
-    // printf("\n");
-    // printf("%u ", peer->ipaddr.u8[15]);
-
-    if(__nbr_of_peers++ >= JOTA_NBR_OF_PEERS) break;
   }
-  // printf("\n");
+  else
+  {
+    for(nbr = uip_ds6_nbr_head();
+        nbr != NULL;
+        nbr = uip_ds6_nbr_next(nbr))
+    {
+      // TO-DO: dirty hack to change prefix from `fe80` to `fd00`
+      uip_ipaddr_copy(&ipaddr, &nbr->ipaddr);
+
+      ipaddr.u16[0] = 253;
+      ipaddr.u16[1] = 0;
+      ipaddr.u16[2] = 0;
+      ipaddr.u16[3] = 0;
+
+      peer = jota_get_peer_by_ipaddr(&ipaddr);
+
+      if(peer != NULL) continue;
+      if(__nbr_of_peers >= JOTA_NBR_OF_PEERS) break;
+
+      jota_insert_peer_to_list(&ipaddr);
+
+      printf("added ");
+      uiplib_ipaddr_print(&ipaddr);
+      printf("\n");
+    }
+  }
 }
 /*---------------------------------------------------------------------------*/
 static int
@@ -202,15 +176,8 @@ random_piece_and_peer()
 
   if(avail_peers_count == 0) return -1;
 
-  // masked_possessions -= me.piece_completed | me.piece_downloading;
   masked_possessions &= ~(me.piece_completed|me.piece_downloading);
 
-  // printf("masked_possessions ["BYTE_TO_BINARY_PATTERN" "BYTE_TO_BINARY_PATTERN" "BYTE_TO_BINARY_PATTERN" "BYTE_TO_BINARY_PATTERN"]\n",
-  //   BYTE_TO_BINARY(masked_possessions), BYTE_TO_BINARY(masked_possessions >> 8),
-  //   BYTE_TO_BINARY(masked_possessions >> 16), BYTE_TO_BINARY(masked_possessions >> 24)
-  // );
-
-  // printf("(%d) masked_possessions: ", __nbr_of_peers);
   unsigned int unpossessed_count = 0;
   for(i = 0; i < JOTA_PIECE_COUNT; i++) {
     if(jota_bitfield_bit_is_set(&masked_possessions, i)) unpossessed_count++;
@@ -280,9 +247,9 @@ tcpip_handler(void)
     cmp_init(&cmp, &cmp_buf, cmp_buf_reader, NULL, cmp_buf_writer);
     if(!cmp_read_u16(&cmp, &packet_type)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
 
-    // printf("Received '%.*s' [", uip_datalen(), (char *)uip_appdata);
+    // printf("Received from ");
     // uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
-    // printf("]\n");
+    // printf(" (%u)\n", packet_type);
 
     struct jota_peer_t *peer = jota_get_peer_by_ipaddr(&UIP_IP_BUF->srcipaddr);
     if(peer == NULL)
@@ -290,6 +257,16 @@ tcpip_handler(void)
       printf("undefined peer [");
       uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
       printf("]\n");
+      
+      if(UIP_IP_BUF->srcipaddr.u16[0] == 253 &&
+          UIP_IP_BUF->srcipaddr.u16[1] == 0 &&
+          UIP_IP_BUF->srcipaddr.u16[2] == 0 &&
+          UIP_IP_BUF->srcipaddr.u16[3] == 0)
+      {
+        if(!jota_unassigned_peer_is_exists(&UIP_IP_BUF->srcipaddr))
+          jota_unassigned_peer_enqueue(&UIP_IP_BUF->srcipaddr);
+      }
+      
       goto finally;
     }
 
@@ -310,14 +287,18 @@ tcpip_handler(void)
       
       // printf("Received HANDSHAKE from ");
       // uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
-      // printf(" [%" PRIu32 "]\n", peer->piece_completed);
+      // printf("\n");
+
+      // Check if completed
+      if(me.piece_completed == JOTA_PIECE_COMPLETED_VALUE && peer->piece_completed == JOTA_PIECE_COMPLETED_VALUE && jota_completed_peer_get(&peer->ipaddr) == NULL) {
+        jota_completed_peer_new(&peer->ipaddr);
+
+        // uiplib_ipaddr_print(&peer->ipaddr);
+        // printf(" is added to completed list\n");
+      }
 
       // Skip sending ACK to an ACK
       if(packet_type == JT_ACK_HANDSHAKE_MSG) goto finally;
-
-      // Check if completed
-      if(peer->piece_completed == JOTA_PIECE_COMPLETED_VALUE)
-        jota_completed_peer_new(&peer->ipaddr);
 
       // Send ACK_HANDSHAKE back
       cmp_buf.idx = 0;
@@ -352,9 +333,9 @@ tcpip_handler(void)
 //       choking = peer->is_neighbor && choking;
 // #endif
 
-      printf("Received INTEREST (%d) from ", peer->uploading_piece_index);
-      uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
-      printf("\n");
+      // printf("Received INTEREST (%d) from ", peer->uploading_piece_index);
+      // uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
+      // printf("\n");
 
       // Send CHOKE back (1 = Choke, 0 = Unchoke)
       cmp_buf.idx = 0;
@@ -374,9 +355,9 @@ tcpip_handler(void)
       if(!cmp_read_u8(&cmp, (uint8_t *)&peer->peer_choking)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
       peer->state = JOTA_CONN_STATE_INTEREST_DECLARED;
 
-      printf("Received CHOKE (%d) from ", peer->peer_choking);
-      uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
-      printf("\n");
+      // printf("Received CHOKE (%d) from ", peer->peer_choking);
+      // uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
+      // printf("\n");
     }
     else if(packet_type == JT_REQUEST_MSG)
     {
@@ -466,12 +447,11 @@ tcpip_handler(void)
         // Check if completed
         if(me.piece_completed == JOTA_PIECE_COMPLETED_VALUE)
         {
-  // #if UIP_STATISTICS == 1
-  //         printf("Download completed [dropped %d, forwarded %d]\n", uip_stat.ip.drop, uip_stat.ip.forwarded);
-  // #else
-  //         printf("Download completed\n");
-  // #endif
+  #if UIP_STATISTICS == 1
+          printf("*** The end [dropped %d, forwarded %d]\n", uip_stat.ip.drop, uip_stat.ip.forwarded);
+  #else
           printf("*** The end\n");
+  #endif
 
           energest_flush();
 
@@ -571,40 +551,59 @@ PROCESS_THREAD(jota_node_process, ev, data)
       etimer_reset(&nbr_tmr);
     }
 
-    // Completed downloading, won't transmit anymore
-    if(me.piece_completed == JOTA_PIECE_COMPLETED_VALUE)
-      PROCESS_EXIT();
-
+    // Me completed and won't random pieces and peers
+    if(me.piece_completed != JOTA_PIECE_COMPLETED_VALUE) {
 #ifdef JOTA_LOW_POWER
-    /* Check if all peers are unreachable */
-    peer = phead;
-    while(peer != NULL)
-    {
-      if(peer->num_losses == 0) goto tx;
-      peer = peer->next;
-    }
-    interval_time += 5;
+      /* Check if all peers are unreachable */
+      peer = phead;
+      while(peer != NULL)
+      {
+        if(peer->num_losses == 0) goto tx;
+        peer = peer->next;
+      }
+      interval_time += 5;
 
-tx:
-    if(random_piece_and_peer() < 0)
-      interval_time += 1;
-    else
-      interval_time = 1;
+  tx:
+      if(random_piece_and_peer() < 0)
+        interval_time += 1;
+      else
+        interval_time = 1;
 #else
-    random_piece_and_peer();
+      random_piece_and_peer();
 #endif
+    }
     
     peer = phead;
     while(peer != NULL)
     {
-      // Transmission timeout handler
+      /* Completed peers are useless to fellow completed peers */
+      if(me.piece_completed == JOTA_PIECE_COMPLETED_VALUE && jota_completed_peer_get(&peer->ipaddr) != NULL)
+      {
+        printf("removed ");
+        uiplib_ipaddr_print(&peer->ipaddr);
+        printf(" since it is completed\n");
+        
+        jota_remove_peer_from_list(peer);
+        goto next;
+      }
+      else if(peer->num_losses >= JOTA_MAX_LOSSES)
+      {
+        printf("removed ");
+        uiplib_ipaddr_print(&peer->ipaddr);
+        printf(" due to too many losses\n");
+
+        jota_remove_peer_from_list(peer);
+        goto next;
+      }
+
+      /* Transmission timeout handler */
       if(peer->txing == true)
       {
         clock_time_t diff = (clock_time() - peer->last_tx) + 1;
         if(JOTA_TX_TIMEOUT + (peer->num_losses * 2 * CLOCK_SECOND) < diff)
         {
           peer->txing = false;
-          peer->num_losses++;;
+          peer->num_losses++;
           
           printf("No responses in time, retransmitting [");
           uiplib_ipaddr_print(&peer->ipaddr);
@@ -653,7 +652,7 @@ tx:
 
         // printf("Sending HANDSHAKE to ");
         // uiplib_ipaddr_print(&peer->ipaddr);
-        // printf(" [%.*s (%d bytes)]\n", mbuflen, mbuf, mbuflen);
+        // printf("\n");
 
         peer->state = JOTA_CONN_STATE_HANDSHAKING;
 
@@ -673,9 +672,9 @@ tx:
 
         if(peer->am_interested && peer->downloading_piece_index != -1)
         {
-          printf("Sending INTEREST (%d) to ", peer->downloading_piece_index);
-          uiplib_ipaddr_print(&peer->ipaddr);
-          printf("\n");
+          // printf("Sending INTEREST (%d) to ", peer->downloading_piece_index);
+          // uiplib_ipaddr_print(&peer->ipaddr);
+          // printf("\n");
 
           cmp_init(&cmp, &cmp_buf, NULL, NULL, cmp_buf_writer);
           cmp_buf.idx = 0;
