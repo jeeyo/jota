@@ -20,7 +20,7 @@
 PROCESS_NAME(jota_udp_server_process);
 PROCESS_NAME(jota_node_process);
 
-#define JOTA_NBR_OF_PEERS 4
+#define JOTA_NBR_OF_PEERS 6
 #define JOTA_CONN_PORT 7300
 
 #define JT_SERIALIZE_RESULT_LEN 128

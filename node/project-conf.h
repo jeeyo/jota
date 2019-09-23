@@ -1,8 +1,8 @@
 #ifndef PROJECT_CONF_H_
 #define PROJECT_CONF_H_
 
-// #undef MAKE_ROUTING
-// #define MAKE_ROUTING MAKE_ROUTING_RPL_LITE
+#undef NETSTACK_MAX_ROUTE_ENTRIES
+#define NETSTACK_MAX_ROUTE_ENTRIES  16
 
 #undef UIP_CONF_BUFFER_SIZE
 #define UIP_CONF_BUFFER_SIZE        140
@@ -28,9 +28,10 @@
  *     LOG_LEVEL_INFO         Basic info
  *     LOG_LEVEL_DBG          Detailled debug
  */
-// #define LOG_CONF_LEVEL_TCPIP                       LOG_LEVEL_ERR
+// #define LOG_CONF_LEVEL_IPV6                        LOG_LEVEL_ERR
 // #define LOG_CONF_LEVEL_RPL                         LOG_LEVEL_ERR
 // #define LOG_CONF_LEVEL_6LOWPAN                     LOG_LEVEL_ERR
+// #define LOG_CONF_LEVEL_TCPIP                       LOG_LEVEL_ERR
 // #define LOG_CONF_LEVEL_MAC                         LOG_LEVEL_ERR
 // #define LOG_CONF_LEVEL_FRAMER                      LOG_LEVEL_ERR
 // #define LOG_CONF_LEVEL_COAP                        LOG_LEVEL_ERR
