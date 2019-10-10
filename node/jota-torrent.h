@@ -47,9 +47,9 @@ struct jota_peer_t
 
   enum jota_conn_state_t state;
 
-  int uploading_piece_index;
-  int downloading_piece_index;
-  int downloading_block_index;
+  int16_t uploading_piece_index;
+  int16_t downloading_piece_index;
+  int16_t downloading_block_index;
 
   clock_time_t last_rx;
 

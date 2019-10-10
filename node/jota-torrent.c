@@ -24,9 +24,6 @@ void jota_insert_peer_to_list(uip_ipaddr_t *ipaddr)
 int jota_remove_peer_from_list(struct jota_peer_t *p)
 {
   if(p == NULL) return -1;
-  
-  struct jota_peer_t *tmp = phead;
-  struct jota_peer_t *prev = NULL;
 
   if(phead == p) {
     phead = p->next;
@@ -35,6 +32,9 @@ int jota_remove_peer_from_list(struct jota_peer_t *p)
     __nbr_of_peers--;
     return 0;
   }
+
+  struct jota_peer_t *tmp = phead;
+  struct jota_peer_t *prev = NULL;
 
 	while(tmp != NULL && tmp != p)
 	{

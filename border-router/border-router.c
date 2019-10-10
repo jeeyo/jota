@@ -34,19 +34,9 @@
 #include "contiki-lib.h"
 #include "contiki-net.h"
 
+// #include "net/netstack.h"
+
 #include "jota-node.h"
-
-#include <string.h>
-#include <inttypes.h>
-
-#define DEBUG DEBUG_PRINT
-#include "net/ipv6/uip-debug.h"
-#include "net/routing/routing.h"
-
-/* Log configuration */
-#include "sys/log.h"
-#define LOG_MODULE "RPL BR"
-#define LOG_LEVEL LOG_LEVEL_INFO
 
 /* Declare and auto-start this file's process */
 PROCESS(contiki_ng_br, "Contiki-NG Border Router");
@@ -58,9 +48,7 @@ PROCESS_THREAD(contiki_ng_br, ev, data)
   PROCESS_BEGIN();
 
   NETSTACK_ROUTING.root_start();
-
-  LOG_INFO("Contiki-NG Border Router started\n");
-
+  
   while(1)
   {
     PROCESS_YIELD();
