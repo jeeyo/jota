@@ -23,8 +23,6 @@ PROCESS_NAME(jota_node_process);
 #define JOTA_NBR_OF_PEERS 4
 #define JOTA_CONN_PORT 7300
 
-#define JT_SERIALIZE_RESULT_LEN 128
-
 // #define JT_ACK_MSG "ack"
 // #define JT_HANDSHAKE_MSG "handshake"
 // #define JT_CHOKE_MSG "choke"
@@ -41,9 +39,9 @@ PROCESS_NAME(jota_node_process);
 #define JT_BLOCK_MSG 5
 #define JT_ACK_HANDSHAKE_MSG 6
 
-#define JOTA_TX_TIMEOUT (10 * CLOCK_SECOND)
-#define JOTA_CHOKED_TIMEOUT (30 * CLOCK_SECOND)
-#define JOTA_HANDSHAKED_TIMEOUT (60 * CLOCK_SECOND)
+#define JOTA_TX_TIMEOUT (2 * CLOCK_SECOND)
+#define JOTA_CHOKED_TIMEOUT (2 * CLOCK_SECOND)
+#define JOTA_HANDSHAKED_TIMEOUT (5 * CLOCK_SECOND)
 
 #define JOTA_MAX_LOSSES 5
 
