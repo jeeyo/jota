@@ -21,6 +21,8 @@
 
 #define JOTA_BORDER_ROUTER
 
+#define JOTA_SIMULATE_DOWNTIME
+
 /* Set maximum debug level on all modules. See os/sys/log-conf.h for
  * a list of supported modules. The different log levels are defined in
  * os/sys/log.h:
@@ -30,7 +32,7 @@
  *     LOG_LEVEL_INFO         Basic info
  *     LOG_LEVEL_DBG          Detailled debug
   */
-#define LOG_CONF_LEVEL_IPV6                        LOG_LEVEL_ERR
+// #define LOG_CONF_LEVEL_IPV6                        LOG_LEVEL_ERR
 // #define LOG_CONF_LEVEL_TCPIP                       LOG_LEVEL_ERR
 // #define LOG_CONF_LEVEL_RPL                         LOG_LEVEL_ERR
 // #define LOG_CONF_LEVEL_6LOWPAN                     LOG_LEVEL_ERR

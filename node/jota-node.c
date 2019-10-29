@@ -7,6 +7,8 @@ extern struct uip_stats uip_stat;
 extern struct jota_peer_t *phead;
 extern unsigned int __nbr_of_peers;
 
+extern bool downtime;
+
 static struct {
   JOTA_PIECE_BITFIELD_TYPE piece_completed;
   JOTA_PIECE_BITFIELD_TYPE piece_downloading;
@@ -21,10 +23,7 @@ static struct {
   (byte & 0x10 ? '1' : '0'), \
   (byte & 0x20 ? '1' : '0'), \
   (byte & 0x40 ? '1' : '0'), \
-  (byte & 0x80 ? '1' : '0') 
-
-#define JOTA_MAX_UPLOADERS 2
-#define JOTA_MAX_DOWNLOADERS 2
+  (byte & 0x80 ? '1' : '0')
 
 /* Bitfield Utilities */
 /*---------------------------------------------------------------------------*/
@@ -101,9 +100,9 @@ map_peers_to_neighbors()
     {
       jota_insert_peer_to_list(&ipaddr);
 
-      printf("added ");
-      uiplib_ipaddr_print(&ipaddr);
-      printf("\n");
+      // printf("added ");
+      // uiplib_ipaddr_print(&ipaddr);
+      // printf("\n");
     }
   }
   else
@@ -156,9 +155,9 @@ map_peers_to_neighbors()
 
       jota_insert_peer_to_list(&ipaddr);
 
-      printf("added ");
-      uiplib_ipaddr_print(&ipaddr);
-      printf("\n");
+      // printf("added ");
+      // uiplib_ipaddr_print(&ipaddr);
+      // printf("\n");
     }
   }
 }
@@ -169,84 +168,84 @@ random_piece_and_peer()
   if(__nbr_of_peers == 0) return -1;
 
   unsigned int my_uploaders = 0;
-  struct jota_peer_t *p = phead;
-  while(p != NULL) {
-    if(p->am_interested) my_uploaders++;
-    p = p->next;
-  }
-  if(my_uploaders >= JOTA_MAX_UPLOADERS) return -1;
-
-  // printf("Uploaders %d\n", my_uploaders);
 
   int i = 0;
   JOTA_PIECE_BITFIELD_TYPE masked_possessions = 0;
 
-  struct jota_peer_t *avail_peers[JOTA_NBR_OF_PEERS];
+  // struct jota_peer_t *avail_peers[JOTA_NBR_OF_PEERS];
   unsigned int avail_peers_count = 0;
 
   struct jota_peer_t *peer = phead;
+  while(peer != NULL) {
 
-  while(peer != NULL)
-  {
     if(!peer->peer_choking &&
-      peer->am_interested == false &&
+      !peer->am_interested &&
       peer->downloading_piece_index == -1 &&
+      peer->piece_completed != 0 &&
       peer->state == JOTA_CONN_STATE_HANDSHAKED)
     {
       masked_possessions |= peer->piece_completed;
-      avail_peers[avail_peers_count++] = peer;
+      // avail_peers[avail_peers_count++] = peer;
+      avail_peers_count++;
     }
-    i++;
+
+    if(peer->am_interested) my_uploaders++;
+
     peer = peer->next;
   }
+  if(my_uploaders >= JOTA_MAX_UPLOADERS) return -2;
 
-  if(avail_peers_count == 0) return -1;
+  // printf("Uploaders %d\n", my_uploaders);
+
+  if(avail_peers_count == 0) return -3;
 
   masked_possessions &= ~(me.piece_completed|me.piece_downloading);
 
   unsigned int unpossessed_count = 0;
   for(i = 0; i < JOTA_PIECE_COUNT; i++) {
     if(jota_bitfield_bit_is_set(masked_possessions, i)) unpossessed_count++;
-    
-    // if(jota_bitfield_bit_is_set(masked_possessions, i)) printf("1");
-    // else printf("0");
   }
-  // printf("\n");
   
-  if(unpossessed_count == 0) return -1;
+  if(unpossessed_count == 0) return -4;
 
-  unsigned short n_rand = (random_rand() % unpossessed_count) + 1;
+  // // random peer
+  // n_rand = random_rand() % avail_peers_count;
+  // peer = avail_peers[n_rand];
 
-  // find next 'randomed' unpossessed
-  for(i = 0; i < JOTA_PIECE_COUNT; i++) {
-    if(jota_bitfield_bit_is_set(masked_possessions, i)) n_rand--;
-
-    if(n_rand <= 0) break;
-  }
-
-  if(i >= JOTA_PIECE_COUNT) return -1;
-
-  // random peer
-  n_rand = random_rand() % avail_peers_count;
-  peer = avail_peers[n_rand];
-
-  if(!peer->peer_choking &&
-      peer->am_interested == false &&
-      peer->downloading_piece_index == -1 &&
-      peer->state == JOTA_CONN_STATE_HANDSHAKED &&
-      jota_bitfield_bit_is_set(peer->piece_completed, i) &&
-      !jota_bitfield_bit_is_set(me.piece_completed, i) &&
-      !jota_bitfield_bit_is_set(me.piece_downloading, i))
+  peer = phead;
+  while(peer != NULL && avail_peers_count > 0)
   {
-    peer->am_interested = true;
-    peer->downloading_piece_index = i;
-    peer->downloading_block_index = 0;
-    jota_bitfield_set_bit(&me.piece_downloading, peer->downloading_piece_index);
+    unsigned short n_rand = (random_rand() % unpossessed_count) + 1;
 
-    return 0;
+    // find next 'randomed' unpossessed
+    for(i = 0; i < JOTA_PIECE_COUNT; i++) {
+      if(jota_bitfield_bit_is_set(masked_possessions, i)) n_rand--;
+      if(n_rand <= 0) break;
+    }
+
+    if(i >= JOTA_PIECE_COUNT) return -5;
+
+    if(!peer->peer_choking &&
+        !peer->am_interested &&
+        peer->downloading_piece_index == -1 &&
+        peer->state == JOTA_CONN_STATE_HANDSHAKED &&
+        jota_bitfield_bit_is_set(peer->piece_completed, i) &&
+        !jota_bitfield_bit_is_set(me.piece_completed, i) &&
+        !jota_bitfield_bit_is_set(me.piece_downloading, i))
+    {
+      peer->am_interested = true;
+      peer->downloading_piece_index = i;
+      peer->downloading_block_index = 0;
+      jota_bitfield_set_bit(&me.piece_downloading, peer->downloading_piece_index);
+
+      avail_peers_count--;
+      peer = phead;
+      continue;
+    }
+    peer = peer->next;
   }
 
-  return -1;
+  return i;
 }
 /*---------------------------------------------------------------------------*/
 void txing_false(struct jota_peer_t *peer)
@@ -313,7 +312,7 @@ tcpip_handler(void)
       
       // printf("Received HANDSHAKE from ");
       // uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
-      // printf("\n");
+      // printf(" (%lu)\n", peer->piece_completed);
 
       // Check if completed
       if(me.piece_completed == JOTA_PIECE_COMPLETED_VALUE && peer->piece_completed == JOTA_PIECE_COMPLETED_VALUE && jota_completed_peer_get(&peer->ipaddr) == NULL) {
@@ -347,16 +346,14 @@ tcpip_handler(void)
       unsigned int my_downloaders = 0;
       struct jota_peer_t *p = phead;
       while(p != NULL) {
-        if(p->peer_interested) my_downloaders++;
+        if(p->peer_interested && !p->am_choking) my_downloaders++;
         p = p->next;
       }
-      printf("Downloaders %d\n", my_downloaders);
 
       int max_downloaders = (me.piece_completed == JOTA_PIECE_COMPLETED_VALUE) ? JOTA_MAX_DOWNLOADERS + JOTA_MAX_UPLOADERS : JOTA_MAX_DOWNLOADERS;
-      uint8_t choking = peer->am_choking || (my_downloaders >= max_downloaders);
-      // uint8_t choking = peer->am_choking;
+      if(my_downloaders < max_downloaders) peer->am_choking = false;
 
-      if(!choking) peer->peer_interested = true;
+      peer->peer_interested = true;
 
       // printf("Received INTEREST (%d) from ", peer->uploading_piece_index);
       // uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
@@ -365,7 +362,7 @@ tcpip_handler(void)
       // Send CHOKE back (1 = Choke, 0 = Unchoke)
       cmp_buf.idx = 0;
       if(!cmp_write_u16(&cmp, JT_CHOKE_MSG)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
-      if(!cmp_write_u8(&cmp, choking)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
+      if(!cmp_write_u8(&cmp, peer->am_choking)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
       
       uip_udp_packet_send(peer->udp_conn, cmp_buf.buf, cmp_buf.idx);
     }
@@ -380,6 +377,12 @@ tcpip_handler(void)
       if(!cmp_read_u8(&cmp, (uint8_t *)&peer->peer_choking)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
       peer->state = JOTA_CONN_STATE_INTEREST_DECLARED;
 
+      // if(peer->peer_choking) {
+      //   printf("Choked by ");
+      //   uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
+      //   printf("\n");
+      // }
+
       // printf("Received CHOKE (%d) from ", peer->peer_choking);
       // uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
       // printf("\n");
@@ -390,7 +393,6 @@ tcpip_handler(void)
        * 0 = JT_REQUEST_MSG
        * 1 = Block Index
        */
-      
       int16_t uploading_block_index;
       if(!cmp_read_s16(&cmp, &uploading_block_index)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
       
@@ -402,8 +404,6 @@ tcpip_handler(void)
       uint8_t block_content[JOTA_BLOCK_SIZE];
       memset(block_content, '0' + (peer->uploading_piece_index % 10), JOTA_BLOCK_SIZE);
       uint16_t block_checksum = crc16_data(block_content, JOTA_BLOCK_SIZE, 0);
-
-      if(uploading_block_index >= JOTA_BLOCK_COUNT - 1) peer->peer_interested = false;
       
       cmp_buf.idx = 0;
       if(!cmp_write_u16(&cmp, JT_BLOCK_MSG)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
@@ -411,8 +411,12 @@ tcpip_handler(void)
       if(!cmp_write_s16(&cmp, uploading_block_index)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
       if(!cmp_write_bin(&cmp, block_content, JOTA_BLOCK_SIZE)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
       if(!cmp_write_u16(&cmp, block_checksum))  printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
+
+      peer->num_blocks_uploaded++;
       
       uip_udp_packet_send(peer->udp_conn, cmp_buf.buf, cmp_buf.idx);
+      peer->txing = true;
+      peer->last_tx = clock_time();
     }
     else if(packet_type == JT_BLOCK_MSG)
     {
@@ -458,8 +462,8 @@ tcpip_handler(void)
       {
         jota_bitfield_set_bit(&me.piece_completed, piece_index);
         jota_bitfield_clear_bit(&me.piece_downloading, piece_index);
-        
-        printf("["BYTE_TO_BINARY_PATTERN" "BYTE_TO_BINARY_PATTERN" "BYTE_TO_BINARY_PATTERN" "BYTE_TO_BINARY_PATTERN"]\n",
+
+        printf("x["BYTE_TO_BINARY_PATTERN" "BYTE_TO_BINARY_PATTERN" "BYTE_TO_BINARY_PATTERN" "BYTE_TO_BINARY_PATTERN"]x\n",
           BYTE_TO_BINARY(me.piece_completed), BYTE_TO_BINARY(me.piece_completed >> 8),
           BYTE_TO_BINARY(me.piece_completed >> 16), BYTE_TO_BINARY(me.piece_completed >> 24)
         );
@@ -493,8 +497,6 @@ PROCESS_THREAD(jota_udp_server_process, ev, data)
 {
   PROCESS_BEGIN();
 
-  printf("UIP_MAX_ROUTES = %d\n", UIP_MAX_ROUTES);
-
 #ifndef JOTA_BORDER_ROUTER
   // memset(&me.piece_completed[0], '0', JOTA_PIECE_COUNT);
   me.piece_completed = 0;
@@ -511,7 +513,9 @@ PROCESS_THREAD(jota_udp_server_process, ev, data)
   while(1)
   {
     PROCESS_YIELD();
-    
+
+    if(downtime) continue;
+
     if(ev == tcpip_event) {
       tcpip_handler();
     }
@@ -550,64 +554,110 @@ PROCESS_THREAD(jota_node_process, ev, data)
   static unsigned int interval_time = 1;
   etimer_set(&interval_tmr, interval_time * CLOCK_SECOND);
 
+#ifdef JOTA_SIMULATE_DOWNTIME
+  static struct etimer downtime_tmr;
+  etimer_set(&downtime_tmr, JOTA_DOWNTIME_TIMEOUT);
+#endif
+
   static struct etimer nbr_tmr;
   etimer_set(&nbr_tmr, 10 * CLOCK_SECOND);
 
-  // static struct etimer energest_tmr;
-  // etimer_set(&energest_tmr, 30 * CLOCK_SECOND);
+  static struct etimer optimistic_unchoke_tmr;
+  etimer_set(&optimistic_unchoke_tmr, JOTA_OPTIMISTIC_UNCHOKE_TIMEOUT);
+
+  static struct etimer energest_tmr;
+  etimer_set(&energest_tmr, 30 * CLOCK_SECOND);
 
   while(1)
   {
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&interval_tmr));
     etimer_set(&interval_tmr, interval_time * CLOCK_SECOND);
 
+#ifdef JOTA_SIMULATE_DOWNTIME
+    if(etimer_expired(&downtime_tmr))
+    {
+      downtime = false;
+      etimer_set(&downtime_tmr, JOTA_DOWNTIME_TIMEOUT);
+
+      int downtime_rand = random_rand() % 100;
+      if(downtime_rand < JOTA_DOWNTIME_CHANCE_PERCENTAGE) {
+        printf("downtime\n");
+        downtime = true;
+        etimer_set(&downtime_tmr, JOTA_DOWNTIME_DURATION);
+      }
+    }
+#endif
+
     if(etimer_expired(&nbr_tmr)) {
       map_peers_to_neighbors();
       etimer_reset(&nbr_tmr);
     }
 
-    // if(etimer_expired(&energest_tmr)) {
+    if(etimer_expired(&optimistic_unchoke_tmr)) {
+      
+      unsigned int max_blocks_uploaded = 0;
+      struct jota_peer_t *top_downloader = NULL;
 
-    //   energest_flush();
+      struct jota_peer_t *lucky_men[JOTA_NBR_OF_PEERS];
+      unsigned int lucky_men_count = 0;
 
-    //   printf("*** CPU [RUN %lluus / LPM %lluus / DEEP LPM %lluus / Total time %lluus] Radio [LISTEN %lluus / TRANSMIT %lluus / OFF %lluus]\n",
-    //           energest_type_time(ENERGEST_TYPE_CPU),
-    //           energest_type_time(ENERGEST_TYPE_LPM),
-    //           energest_type_time(ENERGEST_TYPE_DEEP_LPM),
-    //           ENERGEST_GET_TOTAL_TIME(),
-    //           energest_type_time(ENERGEST_TYPE_LISTEN),
-    //           energest_type_time(ENERGEST_TYPE_TRANSMIT),
-    //           ENERGEST_GET_TOTAL_TIME()
-    //                     - energest_type_time(ENERGEST_TYPE_TRANSMIT)
-    //                     - energest_type_time(ENERGEST_TYPE_LISTEN));
-
-    //   etimer_reset(&energest_tmr);
-    // }
-
-    // Me completed and won't random pieces and peers
-    if(me.piece_completed != JOTA_PIECE_COMPLETED_VALUE) {
-#ifdef JOTA_LOW_POWER
-      /* Check if all peers are unreachable */
       peer = phead;
       while(peer != NULL)
       {
-        if(peer->num_losses == 0) goto tx;
+        if(peer->num_blocks_uploaded > max_blocks_uploaded) {
+          max_blocks_uploaded = peer->num_blocks_uploaded;
+          top_downloader = peer;
+        }
+
+        if(peer->peer_interested && peer->am_choking) {
+          lucky_men[lucky_men_count++] = peer;
+        }
+
         peer = peer->next;
       }
 
-      if(interval_time < 20)
-        interval_time += 5;
+      if(top_downloader != NULL) {
+        top_downloader->num_blocks_uploaded = 0;
+        top_downloader->am_choking = true;
 
-  tx:
-      if(random_piece_and_peer() < 0) {
-        if(interval_time < 10) interval_time += 1;
-      } else
-        interval_time = 1;
-#else
-      random_piece_and_peer();
-#endif
+        if(lucky_men_count > 0) {
+          peer = lucky_men[random_rand() % lucky_men_count];
+          peer->am_choking = false;
+        }
+      }
+
+      etimer_reset(&optimistic_unchoke_tmr);
     }
-    
+
+    if(etimer_expired(&energest_tmr))
+    {
+      energest_flush();
+
+      printf("*** CPU [RUN %lluus / LPM %lluus / DEEP LPM %lluus / Total time %lluus] Radio [LISTEN %lluus / TRANSMIT %lluus / OFF %lluus]\n",
+              energest_type_time(ENERGEST_TYPE_CPU),
+              energest_type_time(ENERGEST_TYPE_LPM),
+              energest_type_time(ENERGEST_TYPE_DEEP_LPM),
+              ENERGEST_GET_TOTAL_TIME(),
+              energest_type_time(ENERGEST_TYPE_LISTEN),
+              energest_type_time(ENERGEST_TYPE_TRANSMIT),
+              ENERGEST_GET_TOTAL_TIME()
+                        - energest_type_time(ENERGEST_TYPE_TRANSMIT)
+                        - energest_type_time(ENERGEST_TYPE_LISTEN));
+
+      etimer_reset(&energest_tmr);
+    }
+
+    if(downtime) continue;
+
+    // Me completed and won't random pieces and peers
+    if(me.piece_completed != JOTA_PIECE_COMPLETED_VALUE)
+    {
+      // int rpp = random_piece_and_peer();
+      // if(rpp < 1)
+      //   printf("random_piece_and_peer() returned %d\n", rpp);
+      random_piece_and_peer();
+    }
+
     peer = phead;
     while(peer != NULL)
     {
@@ -640,17 +690,17 @@ PROCESS_THREAD(jota_node_process, ev, data)
       }
 
       /* Transmission timeout handler */
-      if(peer->txing == true)
+      if(peer->txing)
       {
         clock_time_t diff = (clock_time() - peer->last_tx) + 1;
-        if(JOTA_TX_TIMEOUT + (peer->num_losses * CLOCK_SECOND) < diff)
+        if(JOTA_TX_TIMEOUT < diff)
         {
           peer->txing = false;
           peer->num_losses++;
           
           // printf("TX Failed (");
           // uiplib_ipaddr_print(&peer->ipaddr);
-          // printf(") (%u)\n", peer->num_losses);
+          // printf(") (%u) (%d)\n", peer->num_losses, peer->state);
 
           if(peer->state == JOTA_CONN_STATE_HANDSHAKING)
           {
@@ -675,7 +725,7 @@ PROCESS_THREAD(jota_node_process, ev, data)
       // Not Handshaked
       if(peer->state == JOTA_CONN_STATE_IDLE)
       {
-        if(peer->peer_choking == 1)
+        if(peer->peer_choking)
         {
           if(peer->last_choked == 0)
             peer->last_choked = clock_time();
@@ -734,7 +784,24 @@ PROCESS_THREAD(jota_node_process, ev, data)
       // Just Requested
       else if(peer->state == JOTA_CONN_STATE_INTEREST_DECLARED)
       {
-        if(peer->peer_choking == 0)
+        if(peer->peer_choking)
+        {
+          if(peer->last_choked == 0)
+            peer->last_choked = clock_time();
+          else
+          {
+            clock_time_t diff = (clock_time() - peer->last_choked) + 1;
+            if(JOTA_CHOKED_TIMEOUT < diff) {
+              peer->last_choked = 0;
+              peer->peer_choking = 0;
+              peer->am_interested = false;
+              jota_bitfield_clear_bit(&me.piece_downloading, peer->downloading_piece_index);
+              peer->downloading_piece_index = -1;
+              peer->state = JOTA_CONN_STATE_HANDSHAKED;
+            }
+          }
+        }
+        else
         {
           if(peer->downloading_block_index < JOTA_BLOCK_COUNT)
           {
@@ -752,22 +819,6 @@ PROCESS_THREAD(jota_node_process, ev, data)
             uip_udp_packet_send(peer->udp_conn, cmp_buf.buf, cmp_buf.idx);
             peer->txing = true;
             peer->last_tx = clock_time();
-          }
-        }
-        else
-        {
-          if(peer->last_choked == 0)
-            peer->last_choked = clock_time();
-          else
-          {
-            clock_time_t diff = (clock_time() - peer->last_choked) + 1;
-            if(JOTA_CHOKED_TIMEOUT < diff) {
-              peer->last_choked = 0;
-              peer->peer_choking = 0;
-              peer->am_interested = false;
-              peer->downloading_piece_index = -1;
-              peer->state = JOTA_CONN_STATE_HANDSHAKED;
-            }
           }
         }
       }

@@ -72,10 +72,10 @@ void jota_reset_peer(struct jota_peer_t *p)
 
   p->piece_completed = 0;
   
-  p->am_choking = 0;
-  p->am_interested = 0;
-  p->peer_choking = 0;
-  p->peer_interested = 0;
+  p->am_choking = true;
+  p->am_interested = false;
+  p->peer_choking = false;
+  p->peer_interested = false;
 
   p->last_handshaked = 0;
   p->last_choked = 0;
@@ -85,6 +85,8 @@ void jota_reset_peer(struct jota_peer_t *p)
   p->uploading_piece_index = -1;
   p->downloading_piece_index = -1;
   p->downloading_block_index = 0;
+
+  p->num_blocks_uploaded = 0;
 
   p->last_rx = 0;
 

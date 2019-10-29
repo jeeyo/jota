@@ -11,8 +11,6 @@
 #include "contiki-lib.h"
 #include "contiki-net.h"
 
-// #define JOTA_LOW_POWER
-
 #define JOTA_PIECE_BITFIELD_TYPE uint32_t
 #define JOTA_PIECE_COUNT (sizeof(JOTA_PIECE_BITFIELD_TYPE) * 8)
 #define JOTA_PIECE_COMPLETED_VALUE UINT32_MAX
@@ -50,6 +48,8 @@ struct jota_peer_t
   int16_t uploading_piece_index;
   int16_t downloading_piece_index;
   int16_t downloading_block_index;
+
+  unsigned int num_blocks_uploaded;
 
   clock_time_t last_rx;
 
