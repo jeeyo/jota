@@ -205,7 +205,7 @@ random_piece_and_peer()
   for(i = 0; i < JOTA_PIECE_COUNT; i++) {
     if(jota_bitfield_bit_is_set(masked_possessions, i)) unpossessed_count++;
   }
-  
+
   if(unpossessed_count == 0) return -4;
 
   // // random peer

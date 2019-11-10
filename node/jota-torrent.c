@@ -11,13 +11,25 @@ void jota_insert_peer_to_list(uip_ipaddr_t *ipaddr)
   uip_ipaddr_copy(&peer->ipaddr, ipaddr);
   peer->udp_conn = udp_new(&peer->ipaddr, UIP_HTONS(JOTA_CONN_PORT), NULL);
 
+  // // add peer to the head of the list
+  // if(phead == NULL) {
+  //   phead = peer;
+  //   phead->next = NULL;
+  // } else {
+  //   peer->next = phead;
+  //   phead = peer;
+  // }
+
+  // add peer to the tail of the list
   if(phead == NULL) {
     phead = peer;
     phead->next = NULL;
   } else {
-    peer->next = phead;
-    phead = peer;
+    struct jota_peer_t *tmp = phead;
+    while(tmp->next != NULL) tmp = tmp->next;
+    tmp->next = peer;
   }
+
   __nbr_of_peers++;
 }
 

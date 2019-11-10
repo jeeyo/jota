@@ -21,10 +21,10 @@ PROCESS_NAME(jota_udp_server_process);
 PROCESS_NAME(jota_node_process);
 
 // How many nodes we will download from simultaneously?
-#define JOTA_MAX_UPLOADERS 3
+#define JOTA_MAX_UPLOADERS 2
 // How many nodes we will upload to simultaneously?
 #define JOTA_MAX_DOWNLOADERS 2
-#define JOTA_NBR_OF_PEERS 5
+#define JOTA_NBR_OF_PEERS 4
 // #define JOTA_NBR_OF_PEERS (JOTA_MAX_UPLOADERS + JOTA_MAX_DOWNLOADERS)
 
 #define JOTA_CONN_PORT 7300
