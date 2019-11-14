@@ -7,7 +7,9 @@ extern struct uip_stats uip_stat;
 extern struct jota_peer_t *phead;
 extern unsigned int __nbr_of_peers;
 
+#ifdef JOTA_SIMULATE_DOWNTIME
 extern bool downtime;
+#endif
 
 static struct {
   JOTA_PIECE_BITFIELD_TYPE piece_completed;
@@ -306,10 +308,15 @@ tcpip_handler(void)
        */
       if(peer->state == JOTA_CONN_STATE_HANDSHAKING) txing_false(peer);
 
-      if(!cmp_read_u32(&cmp, &peer->piece_completed)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
+      JOTA_PIECE_BITFIELD_TYPE possession = 0;
+
+      if(!cmp_read_u32(&cmp, &possession)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
       peer->state = JOTA_CONN_STATE_HANDSHAKED;
       peer->last_handshaked = clock_time();
-      
+
+      // if(possession > peer->piece_completed) peer->piece_completed = possession;
+      peer->piece_completed = possession;
+
       // printf("Received HANDSHAKE from ");
       // uiplib_ipaddr_print(&UIP_IP_BUF->srcipaddr);
       // printf(" (%lu)\n", peer->piece_completed);
@@ -463,9 +470,10 @@ tcpip_handler(void)
         jota_bitfield_set_bit(&me.piece_completed, piece_index);
         jota_bitfield_clear_bit(&me.piece_downloading, piece_index);
 
-        printf("x["BYTE_TO_BINARY_PATTERN" "BYTE_TO_BINARY_PATTERN" "BYTE_TO_BINARY_PATTERN" "BYTE_TO_BINARY_PATTERN"]x\n",
+        printf("x["BYTE_TO_BINARY_PATTERN" "BYTE_TO_BINARY_PATTERN" "BYTE_TO_BINARY_PATTERN" "BYTE_TO_BINARY_PATTERN"]x from %d\n",
           BYTE_TO_BINARY(me.piece_completed), BYTE_TO_BINARY(me.piece_completed >> 8),
-          BYTE_TO_BINARY(me.piece_completed >> 16), BYTE_TO_BINARY(me.piece_completed >> 24)
+          BYTE_TO_BINARY(me.piece_completed >> 16), BYTE_TO_BINARY(me.piece_completed >> 24),
+          peer->ipaddr.u8[15]
         );
 
         peer->state = JOTA_CONN_STATE_HANDSHAKED;
@@ -514,7 +522,9 @@ PROCESS_THREAD(jota_udp_server_process, ev, data)
   {
     PROCESS_YIELD();
 
+#ifdef JOTA_SIMULATE_DOWNTIME
     if(downtime) continue;
+#endif
 
     if(ev == tcpip_event) {
       tcpip_handler();
@@ -612,7 +622,6 @@ PROCESS_THREAD(jota_node_process, ev, data)
         if(peer->peer_interested && peer->am_choking) {
           lucky_men[lucky_men_count++] = peer;
         }
-
         peer = peer->next;
       }
 
@@ -647,7 +656,9 @@ PROCESS_THREAD(jota_node_process, ev, data)
       etimer_reset(&energest_tmr);
     }
 
+#ifdef JOTA_SIMULATE_DOWNTIME
     if(downtime) continue;
+#endif
 
     // Me completed and won't random pieces and peers
     if(me.piece_completed != JOTA_PIECE_COMPLETED_VALUE)
