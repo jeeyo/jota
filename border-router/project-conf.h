@@ -21,7 +21,7 @@
 
 #define JOTA_BORDER_ROUTER
 
-// #define JOTA_SIMULATE_DOWNTIME
+#define JOTA_SIMULATE_DOWNTIME
 
 /* Set maximum debug level on all modules. See os/sys/log-conf.h for
  * a list of supported modules. The different log levels are defined in

@@ -26,6 +26,7 @@ enum jota_conn_state_t {
   JOTA_CONN_STATE_INTEREST_DECLARING = 3,
   JOTA_CONN_STATE_INTEREST_DECLARED = 4,
   JOTA_CONN_STATE_DOWNLOADING = 5,
+  JOTA_CONN_STATE_UPLOADING = 6,
 };
 
 struct jota_peer_t
@@ -41,11 +42,14 @@ struct jota_peer_t
   bool peer_interested; // This peer is interested in us
 
   clock_time_t last_handshaked;
+  // unsigned int num_zero_handshakes;
+
   clock_time_t last_choked;
 
   enum jota_conn_state_t state;
 
   int16_t uploading_piece_index;
+  int16_t uploading_block_index;
   int16_t downloading_piece_index;
   int16_t downloading_block_index;
 

@@ -21,11 +21,10 @@ PROCESS_NAME(jota_udp_server_process);
 PROCESS_NAME(jota_node_process);
 
 // How many nodes we will download from simultaneously?
-#define JOTA_MAX_UPLOADERS 3
+#define JOTA_MAX_UPLOADERS 2
 // How many nodes we will upload to simultaneously?
-#define JOTA_MAX_DOWNLOADERS 1
-#define JOTA_NBR_OF_PEERS 4
-// #define JOTA_NBR_OF_PEERS (JOTA_MAX_UPLOADERS + JOTA_MAX_DOWNLOADERS)
+#define JOTA_MAX_DOWNLOADERS 2
+#define JOTA_NBR_OF_PEERS (JOTA_MAX_UPLOADERS + JOTA_MAX_DOWNLOADERS)
 
 #define JOTA_CONN_PORT 7300
 
@@ -44,6 +43,7 @@ PROCESS_NAME(jota_node_process);
 #define JT_REQUEST_MSG 4
 #define JT_BLOCK_MSG 5
 #define JT_ACK_HANDSHAKE_MSG 6
+#define JT_COMPLETE_MSG 7
 
 #define JOTA_TX_TIMEOUT (3 * CLOCK_SECOND)
 #define JOTA_CHOKED_TIMEOUT (5 * CLOCK_SECOND)
@@ -55,6 +55,8 @@ PROCESS_NAME(jota_node_process);
 #define JOTA_DOWNTIME_CHANCE_PERCENTAGE 3
 
 #define JOTA_MAX_LOSSES 5
+#define JOTA_MAX_ZERO_HANDSHAKES 5
+#define JOTA_ENDGAME_PIECE_COUNT_THRESHOLD 2
 
 #define UNUSED(x)     ((void)(x))
 

@@ -90,11 +90,14 @@ void jota_reset_peer(struct jota_peer_t *p)
   p->peer_interested = false;
 
   p->last_handshaked = 0;
+  // p->num_zero_handshakes = 0;
+
   p->last_choked = 0;
 
   p->state = JOTA_CONN_STATE_IDLE;
 
   p->uploading_piece_index = -1;
+  p->uploading_block_index = 0;
   p->downloading_piece_index = -1;
   p->downloading_block_index = 0;
 
