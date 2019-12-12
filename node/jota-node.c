@@ -179,8 +179,8 @@ random_piece_and_peer()
   unsigned int avail_peers_count = 0;
 
   struct jota_peer_t *peer = phead;
-  while(peer != NULL) {
-
+  while(peer != NULL)
+  {
     if(!peer->peer_choking &&
       !peer->am_interested &&
       peer->downloading_piece_index == -1 &&
@@ -208,9 +208,7 @@ random_piece_and_peer()
 
   // When nearly completed, ENDGAME mode (download the same piece from multiple sources)
   if(JOTA_PIECE_COUNT - possessed_count <= JOTA_ENDGAME_PIECE_COUNT_THRESHOLD)
-  {
     masked_possessions |= me.piece_downloading;
-  }
 
   unsigned int unpossessed_count = 0;
   for(i = 0; i < JOTA_PIECE_COUNT; i++) {
@@ -363,7 +361,7 @@ tcpip_handler(void)
 
       peer->peer_interested = true;
 
-      printf("Received INTEREST (%d) from %d\n", peer->uploading_piece_index, UIP_IP_BUF->srcipaddr.u8[15]);
+      // printf("Received INTEREST (%d) from %d\n", peer->uploading_piece_index, UIP_IP_BUF->srcipaddr.u8[15]);
 
       // Send CHOKE back (1 = Choke, 0 = Unchoke)
       cmp_buf.idx = 0;
@@ -383,11 +381,7 @@ tcpip_handler(void)
       if(!cmp_read_u8(&cmp, (uint8_t *)&peer->peer_choking)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
       peer->state = JOTA_CONN_STATE_INTEREST_DECLARED;
 
-      // if(peer->peer_choking) {
-      //   printf("Choked by %d\n", UIP_IP_BUF->srcipaddr.u8[15]);
-      // }
-
-      printf("Received CHOKE (%d) from %d\n", peer->peer_choking, UIP_IP_BUF->srcipaddr.u8[15]);
+      // printf("Received CHOKE (%d) from %d\n", peer->peer_choking, UIP_IP_BUF->srcipaddr.u8[15]);
     }
     else if(packet_type == JT_REQUEST_MSG)
     {
@@ -560,8 +554,6 @@ PROCESS_THREAD(jota_node_process, ev, data)
   {
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&interval_tmr));
     etimer_reset(&interval_tmr);
-
-    if(uip_slen > 0) continue;
 
 #ifdef JOTA_SIMULATE_DOWNTIME
     if(etimer_expired(&downtime_tmr))
@@ -754,7 +746,7 @@ PROCESS_THREAD(jota_node_process, ev, data)
 
         if(peer->am_interested && peer->downloading_piece_index != -1)
         {
-          printf("Sending INTEREST (%d) to %d\n", peer->downloading_piece_index, peer->ipaddr.u8[15]);
+          // printf("Sending INTEREST (%d) to %d\n", peer->downloading_piece_index, peer->ipaddr.u8[15]);
 
           cmp_init(&cmp, &cmp_buf, NULL, NULL, cmp_buf_writer);
           cmp_buf.idx = 0;
@@ -812,10 +804,11 @@ PROCESS_THREAD(jota_node_process, ev, data)
         cmp_buf.idx = 0;
         if(!cmp_write_u16(&cmp, JT_BLOCK_MSG)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
         if(!cmp_write_s16(&cmp, peer->uploading_piece_index)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
-        if(!cmp_write_s16(&cmp, peer->uploading_block_index++)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
+        if(!cmp_write_s16(&cmp, peer->uploading_block_index)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
         if(!cmp_write_bin(&cmp, block_content, JOTA_BLOCK_SIZE)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
         if(!cmp_write_u16(&cmp, block_checksum))  printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
 
+        peer->uploading_block_index++;
         peer->num_blocks_uploaded++;
 
         if(peer->uploading_block_index >= JOTA_BLOCK_COUNT)
