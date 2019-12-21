@@ -361,7 +361,7 @@ tcpip_handler(void)
 
       peer->peer_interested = true;
 
-      // printf("Received INTEREST (%d) from %d\n", peer->uploading_piece_index, UIP_IP_BUF->srcipaddr.u8[15]);
+      printf("Received INTEREST (%d) from %d\n", peer->uploading_piece_index, UIP_IP_BUF->srcipaddr.u8[15]);
 
       // Send CHOKE back (1 = Choke, 0 = Unchoke)
       cmp_buf.idx = 0;
@@ -388,7 +388,7 @@ tcpip_handler(void)
       /*
        * 0 = JT_REQUEST_MSG
        */
-      printf("Received REQUEST (%d) from %d\n", peer->uploading_piece_index, UIP_IP_BUF->srcipaddr.u8[15]);
+      // printf("Received REQUEST (%d) from %d\n", peer->uploading_piece_index, UIP_IP_BUF->srcipaddr.u8[15]);
       peer->state = JOTA_CONN_STATE_UPLOADING;
     }
     else if(packet_type == JT_BLOCK_MSG)
