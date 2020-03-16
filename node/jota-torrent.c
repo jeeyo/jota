@@ -83,7 +83,7 @@ void jota_reset_peer(struct jota_peer_t *p)
   p->udp_conn = NULL;
 
   p->piece_completed = 0;
-  
+
   p->am_choking = true;
   p->am_interested = false;
   p->peer_choking = false;

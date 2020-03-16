@@ -356,17 +356,19 @@ tcpip_handler(void)
         p = p->next;
       }
 
+      bool choke = peer->am_choking;
       int max_downloaders = (me.piece_completed == JOTA_PIECE_COMPLETED_VALUE) ? JOTA_MAX_DOWNLOADERS + JOTA_MAX_UPLOADERS : JOTA_MAX_DOWNLOADERS;
-      if(my_downloaders < max_downloaders) peer->am_choking = false;
+      if(my_downloaders >= max_downloaders) choke |= true;
 
       peer->peer_interested = true;
+      peer->am_choking = false;
 
       printf("Received INTEREST (%d) from %d\n", peer->uploading_piece_index, UIP_IP_BUF->srcipaddr.u8[15]);
 
       // Send CHOKE back (1 = Choke, 0 = Unchoke)
       cmp_buf.idx = 0;
       if(!cmp_write_u16(&cmp, JT_CHOKE_MSG)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
-      if(!cmp_write_u8(&cmp, peer->am_choking)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
+      if(!cmp_write_u8(&cmp, choke)) printf("%s (%d)", cmp_strerror(&cmp), __LINE__);
       
       uip_udp_packet_send(peer->udp_conn, cmp_buf.buf, cmp_buf.idx);
     }
