@@ -46,7 +46,8 @@ struct jota_peer_t
 
   clock_time_t last_choked;
 
-  enum jota_conn_state_t state;
+  enum jota_conn_state_t ustate;
+  enum jota_conn_state_t dstate;
 
   int16_t uploading_piece_index;
   int16_t uploading_block_index;
@@ -54,6 +55,7 @@ struct jota_peer_t
   int16_t downloading_block_index;
 
   unsigned int num_blocks_uploaded;
+  unsigned int num_blocks_downloaded;
 
   clock_time_t last_rx;
 
@@ -61,30 +63,42 @@ struct jota_peer_t
   clock_time_t last_tx;
   unsigned int num_losses;
 
+  bool ok;
+
   struct jota_peer_t *next;
 };
 
-void jota_insert_peer_to_list(uip_ipaddr_t *ipaddr);
+void jota_insert_peer_to_list(uip_ipaddr_t ipaddr);
 int jota_remove_peer_from_list(struct jota_peer_t *p);
-struct jota_peer_t *jota_get_peer_by_ipaddr(uip_ipaddr_t *ipaddr);
+struct jota_peer_t *jota_get_peer_by_ipaddr(uip_ipaddr_t ipaddr);
 void jota_reset_peer(struct jota_peer_t *p);
 
-struct jota_unassigned_peer_t {
-  uip_ipaddr_t ipaddr;
-  struct jota_unassigned_peer_t *next;
-};
 struct jota_completed_peer_t {
   uip_ipaddr_t ipaddr;
   struct jota_completed_peer_t *next;
 };
+struct jota_unassigned_peer_t {
+  uip_ipaddr_t ipaddr;
+  struct jota_unassigned_peer_t *next;
+};
+struct jota_blacklist_peer_t {
+  uip_ipaddr_t ipaddr;
+  struct jota_blacklist_peer_t *next;
+};
 
 /* Store completed peers */
-struct jota_completed_peer_t *jota_completed_peer_get(uip_ipaddr_t *ipaddr);
-void jota_completed_peer_new(uip_ipaddr_t *ipaddr);
+struct jota_completed_peer_t *jota_completed_peer_get(uip_ipaddr_t ipaddr);
+void jota_completed_peer_new(uip_ipaddr_t ipaddr);
+bool jota_is_all_completed();
 
-/* Queue unassigned peers */
-bool jota_unassigned_peer_is_exists(uip_ipaddr_t *ipaddr);
-void jota_unassigned_peer_enqueue(uip_ipaddr_t *ipaddr);
+/* Unassigned peers */
+bool jota_unassigned_peer_is_exists(uip_ipaddr_t ipaddr);
+void jota_unassigned_peer_enqueue(uip_ipaddr_t ipaddr);
 int jota_unassigned_peer_dequeue(uip_ipaddr_t *ipaddr);
+
+/* Blacklisted peers */
+bool jota_blacklist_peer_is_exists(uip_ipaddr_t ipaddr);
+void jota_blacklist_peer_add(uip_ipaddr_t ipaddr);
+int jota_blacklist_peer_remove(uip_ipaddr_t ipaddr);
 
 #endif /* _JOTA_TORRENT_H_ */

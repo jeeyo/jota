@@ -47,10 +47,6 @@ PROCESS_THREAD(contiki_ng_br, ev, data)
 {
   PROCESS_BEGIN();
 
-  printf("JOTA_MAX_UPLOADERS = %d\n", JOTA_MAX_UPLOADERS);
-  printf("JOTA_MAX_DOWNLOADERS = %d\n", JOTA_MAX_DOWNLOADERS);
-  printf("JOTA_DOWNTIME_CHANCE_PERCENTAGE = %d\n", JOTA_DOWNTIME_CHANCE_PERCENTAGE);
-
   NETSTACK_ROUTING.root_start();
   
   while(1)

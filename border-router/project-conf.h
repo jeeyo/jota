@@ -16,12 +16,7 @@
 #undef UIP_CONF_STATISTICS
 #define UIP_CONF_STATISTICS         1
 
-#undef UIP_DS6_ROUTE_REMOVE_LEAST_RECENTLY_USED
-#define UIP_DS6_ROUTE_REMOVE_LEAST_RECENTLY_USED  1
-
 #define JOTA_BORDER_ROUTER
-
-#define JOTA_SIMULATE_DOWNTIME
 
 /* Set maximum debug level on all modules. See os/sys/log-conf.h for
  * a list of supported modules. The different log levels are defined in
