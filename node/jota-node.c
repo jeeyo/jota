@@ -124,7 +124,7 @@ map_peers_to_neighbors()
 
       if(jota_blacklist_peer_is_exists(ipaddr)) {
         jota_blacklist_peer_remove(ipaddr);
-        printf("%u found in blacklist\n", ipaddr.u8[15]);
+        // printf("%u found in blacklist\n", ipaddr.u8[15]);
         continue;
       }
 
@@ -585,6 +585,7 @@ PROCESS_THREAD(jota_node_process, ev, data)
 
 #if JOTA_LATE_ON
   static struct etimer late_on_tmr;
+  etimer_set(&late_on_tmr, JOTA_LATE_ON_TIMEOUT);
 #endif
 
 #if JOTA_INTERMITTENT_OFF
@@ -629,31 +630,44 @@ PROCESS_THREAD(jota_node_process, ev, data)
 
 #if JOTA_LATE_ON
   // Me and everyone around me got no pieces ya know
-  if(me.piece_completed == 0)
+  if(me.piece_completed == 0 && !mac_permanent_off)
   {
-    if(mac_temporarily_off)
+    if(etimer_expired(&late_on_tmr))
     {
-      printf("late on wake\n");
-      NETSTACK_MAC.on();
-      mac_temporarily_off = false;
-      etimer_set(&late_on_tmr, JOTA_INTERMITTENT_OFF_TIMEOUT);
+      if(mac_temporarily_off)
+      {
+        printf("late on wake\n");
+        NETSTACK_MAC.on();
+        mac_temporarily_off = false;
+        etimer_set(&late_on_tmr, JOTA_LATE_ON_TIMEOUT);
+      }
+      else
+      {
+        // JOTA_PIECE_BITFIELD_TYPE masked = me.piece_completed;
+
+        // struct jota_peer_t *p = phead;
+        // while(p != NULL) {
+        //   masked ^= p->piece_completed;
+        //   p = p->next;
+        // }
+
+        bool should_we_delayed_start = true;
+
+        struct jota_peer_t *p = phead;
+        while(p != NULL) {
+          if(p->piece_completed != 0) should_we_delayed_start = false;
+          p = p->next;
+        }
+
+        // if(masked == 0) {
+        if(should_we_delayed_start) {
+          printf("late on sleep\n");
+          NETSTACK_MAC.off();
+          mac_temporarily_off = true;
+          etimer_set(&late_on_tmr, JOTA_LATE_ON_DURATION);
+        }
+      }
     }
-    else
-    {
-      JOTA_PIECE_BITFIELD_TYPE masked = me.piece_completed;
-
-      struct jota_peer_t *p = phead;
-      while(p != NULL) {
-        masked ^= p->piece_completed;
-        p = p->next;
-      }
-
-      if(masked == 0) {
-        printf("late on sleep\n");
-        NETSTACK_MAC.off();
-        mac_temporarily_off = true;
-        etimer_set(&late_on_tmr, JOTA_INTERMITTENT_OFF_DURATION);
-      }
   }
 #endif
 
@@ -666,9 +680,9 @@ PROCESS_THREAD(jota_node_process, ev, data)
       NETSTACK_MAC.off();
       mac_permanent_off = true;
     }
+#if JOTA_INTERMITTENT_OFF
     else if(!mac_permanent_off)
     {
-#if JOTA_INTERMITTENT_OFF
       if(etimer_expired(&lp_tmr))
       {
         if(mac_temporarily_off)
@@ -701,8 +715,8 @@ PROCESS_THREAD(jota_node_process, ev, data)
           }
         }
       }
-#endif
     }
+#endif
 
     if(mac_permanent_off) continue;
 #if JOTA_INTERMITTENT_OFF
@@ -735,13 +749,10 @@ PROCESS_THREAD(jota_node_process, ev, data)
           jota_bitfield_clear_bit(&me.piece_downloading, peer->downloading_piece_index);
         }
 
-        // printf("checking ");
-        // uiplib_ipaddr_print(&peer->ipaddr);
-        // printf(" if it belongs to the blacklist\n");
         if(!jota_blacklist_peer_is_exists(peer->ipaddr))
         {
           jota_blacklist_peer_add(peer->ipaddr);
-          printf("%u added to blacklist\n", peer->ipaddr.u8[15]);
+          // printf("%u added to blacklist\n", peer->ipaddr.u8[15]);
         }
 
         uint8_t ipsuffix = peer->ipaddr.u8[15];
