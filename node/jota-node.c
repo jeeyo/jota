@@ -83,8 +83,12 @@ static struct uip_udp_conn *server_conn;
 
 uip_ds6_addr_t *my_lladdr;
 
+#if JOTA_LATE_ON
+static bool mac_delayed_off = false;
+#endif
+
 #if JOTA_INTERMITTENT_OFF
-static bool mac_temporarily_off = false;
+static bool mac_intermittent_off = false;
 #endif
 
 static bool mac_permanent_off = false;
@@ -100,15 +104,14 @@ map_peers_to_neighbors()
 {
   if(__nbr_of_peers >= JOTA_NBR_OF_PEERS) return;
 
-  // struct jota_peer_t *peer;
   uip_ds6_nbr_t *nbr;
   uip_ipaddr_t ipaddr;
 
-  while(__nbr_of_peers < JOTA_NBR_OF_PEERS && jota_unassigned_peer_dequeue(&ipaddr) > -1 && jota_completed_peer_get(&ipaddr) == NULL)
-  {
-    jota_insert_peer_to_list(&ipaddr);
-    printf("added %u from unassigned peers\n", ipaddr.u8[15]);
-  }
+  // while(__nbr_of_peers < JOTA_NBR_OF_PEERS && jota_unassigned_peer_dequeue(&ipaddr) > -1 && jota_completed_peer_get(ipaddr) == NULL)
+  // {
+  //   jota_insert_peer_to_list(ipaddr);
+  //   printf("added %u from unassigned peers\n", ipaddr.u8[15]);
+  // }
 
   if(__nbr_of_peers < JOTA_NBR_OF_PEERS)
   {
@@ -118,13 +121,13 @@ map_peers_to_neighbors()
     {
       uip_ipaddr_copy(&ipaddr, &nbr->ipaddr);
 
-      // if(jota_completed_peer_get(ipaddr) != NULL) continue;
+      if(jota_completed_peer_get(ipaddr) != NULL) continue;
       if(jota_get_peer_by_ipaddr(ipaddr) != NULL) continue;
       if(__nbr_of_peers >= JOTA_NBR_OF_PEERS) break;
 
       if(jota_blacklist_peer_is_exists(ipaddr)) {
         jota_blacklist_peer_remove(ipaddr);
-        // printf("%u found in blacklist\n", ipaddr.u8[15]);
+        printf("%u found in blacklist\n", ipaddr.u8[15]);
         continue;
       }
 
@@ -207,7 +210,6 @@ random_piece_and_peer()
     {
       peer->am_interested = true;
       peer->downloading_piece_index = i;
-      peer->downloading_block_index = 0;
       jota_bitfield_set_bit(&me.piece_downloading, peer->downloading_piece_index);
 
       avail_peers_count--;
@@ -250,8 +252,8 @@ tcpip_handler(void)
     struct jota_peer_t *peer = jota_get_peer_by_ipaddr(UIP_IP_BUF->srcipaddr);
     if(peer == NULL)
     {
-      if(!jota_unassigned_peer_is_exists(&UIP_IP_BUF->srcipaddr))
-        jota_unassigned_peer_enqueue(&UIP_IP_BUF->srcipaddr);
+      // if(!jota_unassigned_peer_is_exists(UIP_IP_BUF->srcipaddr))
+      //   jota_unassigned_peer_enqueue(UIP_IP_BUF->srcipaddr);
       
       goto finally;
     }
@@ -336,9 +338,9 @@ tcpip_handler(void)
         // printf(" is added to completed list\n");
       }
 
-      if(new_possession == peer->piece_completed) {
-        peer->last_handshaked = clock_time() + (15 * CLOCK_SECOND);
-      }
+      // if(new_possession == peer->piece_completed) {
+      //   peer->last_handshaked = clock_time() + (5 * CLOCK_SECOND);
+      // }
 
       peer->piece_completed = new_possession;
 
@@ -395,7 +397,7 @@ tcpip_handler(void)
       peer->peer_interested = true;
       peer->am_choking = false;
 
-      printf("Received INTEREST (%d) from %d\n", peer->uploading_piece_index, UIP_IP_BUF->srcipaddr.u8[15]);
+      // printf("Received INTEREST (%d) from %d\n", peer->uploading_piece_index, UIP_IP_BUF->srcipaddr.u8[15]);
 
       // Send CHOKE back (1 = Choke, 0 = Unchoke)
       cmp_buf.idx = 0;
@@ -435,10 +437,22 @@ tcpip_handler(void)
        * 2 = Block Binary
        * 3 = Checksum
        */
+      if(peer->downloading_piece_index == -1) goto finally;
       if(peer->dstate == JOTA_CONN_STATE_DOWNLOADING) txing_false(peer);
 
       int16_t piece_index;
       if(!cmp_read_s16(&cmp, &piece_index)) goto finally;
+      if(piece_index != peer->downloading_piece_index)
+      {
+        printf("mismatch piece (expecting %d but received %d)\n", peer->downloading_piece_index, piece_index);
+        jota_bitfield_clear_bit(&me.piece_downloading, peer->downloading_piece_index);
+
+        peer->dstate = JOTA_CONN_STATE_HANDSHAKED;
+        peer->am_interested = false;
+        peer->downloading_piece_index = -1;
+
+        goto finally;
+      }
 
       int16_t block_index;
       if(!cmp_read_s16(&cmp, &block_index)) goto finally;
@@ -453,9 +467,15 @@ tcpip_handler(void)
 
       // TO-DO: Verify piece index
       bool integrity = (my_crc == src_crc) && (piece_size == JOTA_BLOCK_SIZE);
-      if(!integrity) {
+      if(!integrity)
+      {
         printf("integrity false\n");
-        peer->downloading_block_index--;
+        peer->dstate = JOTA_CONN_STATE_HANDSHAKED;
+        peer->am_interested = false;
+        peer->downloading_piece_index = -1;
+
+        jota_bitfield_clear_bit(&me.piece_downloading, piece_index);
+
         goto finally;
       }
 
@@ -469,7 +489,6 @@ tcpip_handler(void)
         peer->dstate = JOTA_CONN_STATE_HANDSHAKED;
         peer->am_interested = false;
         peer->downloading_piece_index = -1;
-        peer->downloading_block_index = 0;
 
         jota_bitfield_clear_bit(&me.piece_downloading, piece_index);
 
@@ -540,8 +559,11 @@ PROCESS_THREAD(jota_udp_server_process, ev, data)
     }
 
     if(mac_permanent_off) continue;
+#if JOTA_LATE_ON
+    if(mac_delayed_off) continue;
+#endif
 #if JOTA_INTERMITTENT_OFF
-    if(mac_temporarily_off) continue;
+    if(mac_intermittent_off) continue;
 #endif
 
     if(ev == tcpip_event) {
@@ -634,11 +656,11 @@ PROCESS_THREAD(jota_node_process, ev, data)
   {
     if(etimer_expired(&late_on_tmr))
     {
-      if(mac_temporarily_off)
+      if(mac_delayed_off)
       {
         printf("late on wake\n");
         NETSTACK_MAC.on();
-        mac_temporarily_off = false;
+        mac_delayed_off = false;
         etimer_set(&late_on_tmr, JOTA_LATE_ON_TIMEOUT);
       }
       else
@@ -663,7 +685,7 @@ PROCESS_THREAD(jota_node_process, ev, data)
         if(should_we_delayed_start) {
           printf("late on sleep\n");
           NETSTACK_MAC.off();
-          mac_temporarily_off = true;
+          mac_delayed_off = true;
           etimer_set(&late_on_tmr, JOTA_LATE_ON_DURATION);
         }
       }
@@ -681,15 +703,15 @@ PROCESS_THREAD(jota_node_process, ev, data)
       mac_permanent_off = true;
     }
 #if JOTA_INTERMITTENT_OFF
-    else if(!mac_permanent_off)
+    else if(me.piece_completed > 0 && !mac_permanent_off)
     {
       if(etimer_expired(&lp_tmr))
       {
-        if(mac_temporarily_off)
+        if(mac_intermittent_off)
         {
           printf("wake\n");
           NETSTACK_MAC.on();
-          mac_temporarily_off = false;
+          mac_intermittent_off = false;
           etimer_set(&lp_tmr, JOTA_INTERMITTENT_OFF_TIMEOUT);
         }
         else
@@ -709,7 +731,7 @@ PROCESS_THREAD(jota_node_process, ev, data)
             if(sleep_rand < JOTA_INTERMITTENT_OFF_CHANCE) {
               printf("sleep\n");
               NETSTACK_MAC.off();
-              mac_temporarily_off = true;
+              mac_intermittent_off = true;
               etimer_set(&lp_tmr, JOTA_INTERMITTENT_OFF_DURATION);
             }
           }
@@ -719,8 +741,11 @@ PROCESS_THREAD(jota_node_process, ev, data)
 #endif
 
     if(mac_permanent_off) continue;
+#if JOTA_LATE_ON
+    if(mac_delayed_off) continue;
+#endif
 #if JOTA_INTERMITTENT_OFF
-    if(mac_temporarily_off) continue;
+    if(mac_intermittent_off) continue;
 #endif
 
     // Me completed and won't random pieces and peers
@@ -734,11 +759,13 @@ PROCESS_THREAD(jota_node_process, ev, data)
       if(I_AM_COMPLETED && jota_completed_peer_get(peer->ipaddr) != NULL)
       {
         uint8_t ipsuffix = peer->ipaddr.u8[15];
-        
+
         struct jota_peer_t *next = peer->next;
 
-        if(jota_remove_peer_from_list(peer) != -1);
+        if(jota_remove_peer_from_list(peer) != -1)
           printf("removed %u since it is completed\n", ipsuffix);
+        else
+          printf("unable to find %u to remove (completed)\n", ipsuffix);
 
         peer = next;
         continue;
@@ -749,18 +776,23 @@ PROCESS_THREAD(jota_node_process, ev, data)
           jota_bitfield_clear_bit(&me.piece_downloading, peer->downloading_piece_index);
         }
 
+        printf("checking ");
+        uiplib_ipaddr_print(&peer->ipaddr);
+        printf("\n");
         if(!jota_blacklist_peer_is_exists(peer->ipaddr))
         {
           jota_blacklist_peer_add(peer->ipaddr);
-          // printf("%u added to blacklist\n", peer->ipaddr.u8[15]);
+          printf("%u added to blacklist\n", peer->ipaddr.u8[15]);
         }
 
         uint8_t ipsuffix = peer->ipaddr.u8[15];
 
         struct jota_peer_t *next = peer->next;
 
-        if(jota_remove_peer_from_list(peer) != -1);
+        if(jota_remove_peer_from_list(peer) != -1)
           printf("removed %u due to too many losses\n", ipsuffix);
+        else
+          printf("unable to find %u to remove (losses)\n", ipsuffix);
 
         peer = next;
         continue;
@@ -796,7 +828,6 @@ PROCESS_THREAD(jota_node_process, ev, data)
             peer->am_interested = false;
             jota_bitfield_clear_bit(&me.piece_downloading, peer->downloading_piece_index);
             peer->downloading_piece_index = -1;
-            peer->downloading_block_index = 0;
           }
         }
         goto next;
@@ -843,18 +874,19 @@ PROCESS_THREAD(jota_node_process, ev, data)
         // printf("Sending HANDSHAKE to %d\n", peer->ipaddr.u8[15]);
 
         peer->dstate = JOTA_CONN_STATE_HANDSHAKING;
-
-        uip_udp_packet_send(peer->udp_conn, cmp_buf.buf, cmp_buf.idx);
         peer->txing = true;
         peer->last_tx = clock_time();
+
+        uip_udp_packet_send(peer->udp_conn, cmp_buf.buf, cmp_buf.idx);
       }
       // Just Handshaked
       else if(peer->dstate == JOTA_CONN_STATE_HANDSHAKED)
       {
         // Check if we should update their possession bitfield again
+        clock_time_t diff = (clock_time() - peer->last_handshaked) + 1;
         if(peer->piece_completed != JOTA_PIECE_COMPLETED_VALUE &&
           // me.piece_completed != JOTA_PIECE_COMPLETED_VALUE &&
-          clock_time() + JOTA_HANDSHAKED_TIMEOUT > peer->last_handshaked)
+          JOTA_HANDSHAKED_TIMEOUT < diff)
         {
           peer->dstate = JOTA_CONN_STATE_IDLE;
           goto next;
@@ -870,10 +902,10 @@ PROCESS_THREAD(jota_node_process, ev, data)
           if(!cmp_write_s16(&cmp, peer->downloading_piece_index)) goto next;
 
           peer->dstate = JOTA_CONN_STATE_INTEREST_DECLARING;
-
-          uip_udp_packet_send(peer->udp_conn, cmp_buf.buf, cmp_buf.idx);
           peer->txing = true;
           peer->last_tx = clock_time();
+
+          uip_udp_packet_send(peer->udp_conn, cmp_buf.buf, cmp_buf.idx);
         }
       }
       // Just Requested
@@ -905,10 +937,10 @@ PROCESS_THREAD(jota_node_process, ev, data)
           // printf("Sending REQUEST (%d) to %d\n", peer->downloading_piece_index, peer->ipaddr.u8[15]);
 
           peer->dstate = JOTA_CONN_STATE_DOWNLOADING;
-
-          uip_udp_packet_send(peer->udp_conn, cmp_buf.buf, cmp_buf.idx);
           peer->txing = true;
           peer->last_tx = clock_time();
+
+          uip_udp_packet_send(peer->udp_conn, cmp_buf.buf, cmp_buf.idx);
         }
       }
 

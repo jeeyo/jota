@@ -52,7 +52,6 @@ struct jota_peer_t
   int16_t uploading_piece_index;
   int16_t uploading_block_index;
   int16_t downloading_piece_index;
-  int16_t downloading_block_index;
 
   unsigned int num_blocks_uploaded;
   unsigned int num_blocks_downloaded;

@@ -28,9 +28,11 @@ void jota_insert_peer_to_list(uip_ipaddr_t ipaddr)
 
 int jota_remove_peer_from_list(struct jota_peer_t *p)
 {
+  if(phead == NULL) return -1;
   if(p == NULL) return -1;
 
-  if(phead == p) {
+  if(p == phead)
+  {
     phead = phead->next;
     free(p);
     __nbr_of_peers--;
@@ -38,20 +40,18 @@ int jota_remove_peer_from_list(struct jota_peer_t *p)
   }
 
   struct jota_peer_t *prev = phead;
-  struct jota_peer_t *curr = phead->next;
 
-	while(prev != NULL && curr != NULL) {
-    if(curr == p) {
-      prev->next = curr->next;
-      free(curr);
-      __nbr_of_peers--;
-      return 0;
-    }
-    prev = curr;
-		curr = curr->next;
+	while(prev != NULL) {
+    if(prev->next == p) break;
+		prev = prev->next;
   };
 
-  return -1;
+  if(prev == NULL) return -1;
+
+  prev->next = p->next;
+  free(p);
+  __nbr_of_peers--;
+  return 0;
 }
 
 struct jota_peer_t *jota_get_peer_by_ipaddr(uip_ipaddr_t ipaddr)
@@ -89,7 +89,6 @@ void jota_reset_peer(struct jota_peer_t *p)
   p->uploading_piece_index = -1;
   p->uploading_block_index = 0;
   p->downloading_piece_index = -1;
-  p->downloading_block_index = 0;
 
   p->num_blocks_uploaded = 0;
   p->num_blocks_downloaded = 0;
@@ -111,7 +110,6 @@ struct jota_completed_peer_t *pcompleted_head = NULL;
 struct jota_completed_peer_t *jota_completed_peer_get(uip_ipaddr_t ipaddr)
 {
   struct jota_completed_peer_t *peer = pcompleted_head;
-
 	while(peer != NULL)
 	{
     if(uip_ipaddr_cmp(&ipaddr, &peer->ipaddr)) return peer;
